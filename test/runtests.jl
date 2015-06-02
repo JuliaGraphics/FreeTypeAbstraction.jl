@@ -2,4 +2,13 @@ using FreeFontAbstraction
 using Base.Test
 
 # write your own tests here
-@test 1 == 1
+FreeFontAbstraction.init()
+
+face 	= newface("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+img, metric = renderface(face, 'C')
+println(size(img))
+println(typeof(img))
+println(metric)
+
+
+FreeFontAbstraction.done()
