@@ -15,7 +15,7 @@ FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale=64) = FontExtent(
 )
 
 
-const FREE_FONT_LIBRARY = (FT_Library)[C_NULL]
+const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
 function init()
     global FREE_FONT_LIBRARY
@@ -93,4 +93,3 @@ function glyphbitmap(bmpRec::FreeType.FT_Bitmap)
     end
     return bmp
 end
-
