@@ -19,14 +19,14 @@ const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
 function init()
     global FREE_FONT_LIBRARY
-    @assert FREE_FONT_LIBRARY[1] == C_NULL
+    FREE_FONT_LIBRARY[1] != C_NULL && error("Freetype already initalized. init() called two times?")
     err = FT_Init_FreeType(FREE_FONT_LIBRARY)
     return err == 0
 end
 
 function done()
     global FREE_FONT_LIBRARY
-    @assert FREE_FONT_LIBRARY[1] != C_NULL
+    FREE_FONT_LIBRARY[1] == C_NULL && error("Library == CNULL. FreeTypeAbstraction.done() called before init(), or done called two times?")
     err = FT_Done_FreeType(FREE_FONT_LIBRARY[1])
     FREE_FONT_LIBRARY[1] = C_NULL
     return err == 0
