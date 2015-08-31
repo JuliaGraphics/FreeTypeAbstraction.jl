@@ -1,34 +1,32 @@
 
 immutable FontExtent{T}
-    vertical_bearing    ::Vector2{T}
-    horizontal_bearing  ::Vector2{T}
+    vertical_bearing    ::Vec{2, T}
+    horizontal_bearing  ::Vec{2, T}
 
-    advance             ::Vector2{T}
-    scale               ::Vector2{T}
+    advance             ::Vec{2, T}
+    scale               ::Vec{2, T}
 end
 
 FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale=64) = FontExtent(
-    Vector2{Int}(fontmetric.vertBearingX, fontmetric.vertBearingY)/scale,
-    Vector2{Int}(fontmetric.horiBearingX, fontmetric.horiBearingY)/scale,
-    Vector2{Int}(fontmetric.horiAdvance, fontmetric.vertAdvance)/scale,
-    Vector2{Int}(fontmetric.width, fontmetric.height)/scale
+    div(Vec{2, Int}(fontmetric.vertBearingX, fontmetric.vertBearingY), scale),
+    div(Vec{2, Int}(fontmetric.horiBearingX, fontmetric.horiBearingY), scale),
+    div(Vec{2, Int}(fontmetric.horiAdvance, fontmetric.vertAdvance), scale),
+    div(Vec{2, Int}(fontmetric.width, fontmetric.height), scale)
 )
 
 
-
-
-const FREE_FONT_LIBRARY = (FT_Library)[C_NULL]
+const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
 function init()
     global FREE_FONT_LIBRARY
-    @assert FREE_FONT_LIBRARY[1] == C_NULL
+    FREE_FONT_LIBRARY[1] != C_NULL && error("Freetype already initalized. init() called two times?")
     err = FT_Init_FreeType(FREE_FONT_LIBRARY)
     return err == 0
 end
 
 function done()
     global FREE_FONT_LIBRARY
-    @assert FREE_FONT_LIBRARY[1] != C_NULL
+    FREE_FONT_LIBRARY[1] == C_NULL && error("Library == CNULL. FreeTypeAbstraction.done() called before init(), or done called two times?")
     err = FT_Done_FreeType(FREE_FONT_LIBRARY[1])
     FREE_FONT_LIBRARY[1] = C_NULL
     return err == 0
@@ -61,9 +59,9 @@ function kerning(c1::Char, c2::Char, face::Array{Ptr{FreeType.FT_FaceRec},1}, di
     kernVec = Array(FreeType.FT_Vector, 1)
     err = FT_Get_Kerning(face[], i1, i2, FreeType.FT_KERNING_DEFAULT, pointer(kernVec))
     if err != 0
-        return zero(Vector2{Float32})
+        return zero(Vec{2, Float32})
     end
-    return Vector2{Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
+    return Vec{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
 end
 
 function loadchar(face, c::Char)
@@ -95,4 +93,3 @@ function glyphbitmap(bmpRec::FreeType.FT_Bitmap)
     end
     return bmp
 end
-
