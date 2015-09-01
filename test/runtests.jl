@@ -1,14 +1,19 @@
-using FreeFontAbstraction
+using FreeTypeAbstraction, FixedSizeArrays
 using Base.Test
 
 # write your own tests here
-FreeFontAbstraction.init()
+FreeTypeAbstraction.init()
 
-face 	= newface("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+face = newface("hack_regular.ttf")
+
 img, metric = renderface(face, 'C')
-println(size(img))
-println(typeof(img))
-println(metric)
+@test size(img) == (15, 23)
+@test typeof(img) == Array{UInt8,2}
+@test metric == FontExtent(
+	Vec(-8,4),
+	Vec(2,23),
+	Vec(19,31),
+	Vec(15,23)
+)
 
-
-FreeFontAbstraction.done()
+FreeTypeAbstraction.done()
