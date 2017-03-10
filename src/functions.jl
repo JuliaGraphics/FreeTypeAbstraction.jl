@@ -115,3 +115,72 @@ function glyphbitmap(bmpRec::FreeType.FT_Bitmap)
     end
     return bmp
 end
+
+one_or_typemax{T<:Union{Real,Colorant}}(::Type{T}) = T<:Integer ? typemax(T) : one(T)
+
+"""
+    renderstring!(img::AbstractMatrix, str::String, face, pixelsize, y0, x0;
+            fcolor=one_or_typemax(T), bcolor=zero(T), halign=:hleft, valign=:vbaseline) -> Matrix
+
+Render `str` into `img` using the font `face` of size `pixelsize` at coordinates `y0,x0`.
+
+# Arguments
+* `y0,x0`: origin is in upper left with positive `y` going down
+* `fcolor`: foreground color; typemax(T) for T<:Integer, otherwise one(T)
+* `bcolor`: background color; set to `nothing` for transparent
+* `halign`: :hleft, :hcenter, or :hright
+* `valign`: :vtop, :vcenter, :vbaseline, or :vbottom
+"""
+function renderstring!{T<:Union{Real,Colorant}}(img::AbstractMatrix{T}, str::String, face, pixelsize, y0, x0;
+            fcolor::T=one_or_typemax(T), bcolor::Union{T,Void}=zero(T), halign::Symbol=:hleft, valign::Symbol=:vbaseline)
+    bitmaps = Array(Array{UInt8,2}, endof(str))
+    metrics = Array(FontExtent{Int64}, endof(str))
+    ymin = ymax = sumadvancex = 0
+    for (istr,char) = enumerate(str)
+        bitmap, metric = renderface(face, char, pixelsize)
+        bitmaps[istr] = bitmap
+        metrics[istr] = metric
+        w,h = metric.scale.data
+        bx,by = metric.horizontal_bearing
+        ymin = min(ymin,by-h)
+        ymax = max(ymax,by)
+        sumadvancex += metric.advance[1]
+    end
+
+    px = x0 - (halign==:hright ? sumadvancex : halign==:hcenter ? sumadvancex>>1 : 0)
+    py = y0 + (valign==:vtop ? ymax : valign==:vbottom ? ymin :
+            valign==:vcenter ? (ymax-ymin)>>1+ymin : 0)
+    bitmapmax = typemax(eltype(bitmaps[1]))
+
+    bcolor==nothing || (img[py-ymax+1:py-ymin-1, px-1:px+sumadvancex-1] = bcolor)
+
+    local prev_char
+    for (istr,char) = enumerate(str)
+        w,h = metrics[istr].scale.data
+        bx,by = metrics[istr].horizontal_bearing
+        if istr==1
+            prev_char=char
+        else
+            kx, ky = kerning(prev_char, char, face, 64.0f0)
+            px += round(Int,kx)
+        end
+        if bcolor==nothing
+            for row=1:h, col=1:w
+                bitmaps[istr][col,row]==0 && continue
+                c1 = bitmaps[istr][col,row] / bitmapmax * fcolor
+                img[row+py-by, col+px-bx] = T<:Integer ? round(T,c1) : T(c1)
+            end
+        else
+            for row=1:h, col=1:w
+                bitmaps[istr][col,row]==0 && continue
+                w1 = bitmaps[istr][col,row] / bitmapmax
+                c1 = w1 * fcolor
+                c0 = (1.0 - w1) * bcolor
+                img[row+py-by, col+px-bx] = T<:Integer ? round(T,c1+c0) : T(c1+c0)
+            end
+        end
+        px += metrics[istr].advance[1]
+    end
+
+    img 
+end
