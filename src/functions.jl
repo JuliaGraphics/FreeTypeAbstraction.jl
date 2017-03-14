@@ -1,29 +1,34 @@
 immutable FontExtent{T}
-    vertical_bearing    ::Vec{2, T}
-    horizontal_bearing  ::Vec{2, T}
+    vertical_bearing    ::MVector{2, T}
+    horizontal_bearing  ::MVector{2, T}
 
-    advance             ::Vec{2, T}
-    scale               ::Vec{2, T}
+    advance             ::MVector{2, T}
+    scale               ::MVector{2, T}
 end
 
-import Base: ./, .*
+import Base: ./, .*, ==
 
-.*{T, T2}(f::FontExtent{T}, scaling::Vec{2, T2}) = FontExtent(
+.*{T, T2}(f::FontExtent{T}, scaling::MVector{2, T2}) = FontExtent(
     f.vertical_bearing * scaling[1],
     f.horizontal_bearing * scaling[2],
     f.advance .* scaling,
     f.scale .* scaling )
-./{T, T2}(f::FontExtent{T}, scaling::Vec{2, T2}) = FontExtent(
+./{T, T2}(f::FontExtent{T}, scaling::MVector{2, T2}) = FontExtent(
     f.vertical_bearing ./ scaling,
     f.horizontal_bearing ./ scaling,
     f.advance ./ scaling,
     f.scale ./ scaling )
+==(x::FontExtent, y::FontExtent) =
+        x.vertical_bearing == y.vertical_bearing &&
+        x.horizontal_bearing == y.horizontal_bearing &&
+        x.advance == y.advance &&
+        x.scale == y.scale
 
 FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale=64) = FontExtent(
-    div(Vec{2, Int}(fontmetric.vertBearingX, fontmetric.vertBearingY), scale),
-    div(Vec{2, Int}(fontmetric.horiBearingX, fontmetric.horiBearingY), scale),
-    div(Vec{2, Int}(fontmetric.horiAdvance, fontmetric.vertAdvance), scale),
-    div(Vec{2, Int}(fontmetric.width, fontmetric.height), scale)
+    div(MVector{2, Int}(fontmetric.vertBearingX, fontmetric.vertBearingY), scale),
+    div(MVector{2, Int}(fontmetric.horiBearingX, fontmetric.horiBearingY), scale),
+    div(MVector{2, Int}(fontmetric.horiAdvance, fontmetric.vertAdvance), scale),
+    div(MVector{2, Int}(fontmetric.width, fontmetric.height), scale)
 )
 
 const FREE_FONT_LIBRARY = FT_Library[C_NULL]
@@ -68,9 +73,9 @@ function kerning(c1::Char, c2::Char, face::Array{Ptr{FreeType.FT_FaceRec},1}, di
     kernVec = Array(FreeType.FT_Vector, 1)
     err = FT_Get_Kerning(face[], i1, i2, FreeType.FT_KERNING_DEFAULT, pointer(kernVec))
     if err != 0
-        return zero(Vec{2, Float32})
+        return zero(MVector{2, Float32})
     end
-    return Vec{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
+    return MVector{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
 end
 
 function loadchar(face, c::Char)

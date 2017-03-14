@@ -4,7 +4,7 @@ Easily load and render Fonts:
 
 ```Julia
 
-using FreeTypeAbstraction, FixedSizeArrays
+using FreeTypeAbstraction, StaticArrays
 using Base.Test
 
 # write your own tests here
@@ -14,10 +14,10 @@ img, metric = renderface(face, 'C')
 @test size(img) == (15, 23)
 @test typeof(img) == Array{UInt8,2}
 @test metric == FontExtent(
-	Vec(-8,4),
-	Vec(2,23),
-	Vec(19,31),
-	Vec(15,23)
+	MVector(-8,4),
+	MVector(2,23),
+	MVector(19,31),
+	MVector(15,23)
 )
 ```
 
