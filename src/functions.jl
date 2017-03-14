@@ -1,37 +1,52 @@
-
 immutable FontExtent{T}
-    vertical_bearing    ::Vec{2, T}
-    horizontal_bearing  ::Vec{2, T}
+    vertical_bearing    ::MVector{2, T}
+    horizontal_bearing  ::MVector{2, T}
 
-    advance             ::Vec{2, T}
-    scale               ::Vec{2, T}
+    advance             ::MVector{2, T}
+    scale               ::MVector{2, T}
 end
 
-FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale=64) = FontExtent(
-    div(Vec{2, Int}(fontmetric.vertBearingX, fontmetric.vertBearingY), scale),
-    div(Vec{2, Int}(fontmetric.horiBearingX, fontmetric.horiBearingY), scale),
-    div(Vec{2, Int}(fontmetric.horiAdvance, fontmetric.vertAdvance), scale),
-    div(Vec{2, Int}(fontmetric.width, fontmetric.height), scale)
-)
+import Base: ./, .*, ==
 
+.*{T, T2}(f::FontExtent{T}, scaling::MVector{2, T2}) = FontExtent(
+    f.vertical_bearing * scaling[1],
+    f.horizontal_bearing * scaling[2],
+    f.advance .* scaling,
+    f.scale .* scaling )
+./{T, T2}(f::FontExtent{T}, scaling::MVector{2, T2}) = FontExtent(
+    f.vertical_bearing ./ scaling,
+    f.horizontal_bearing ./ scaling,
+    f.advance ./ scaling,
+    f.scale ./ scaling )
+==(x::FontExtent, y::FontExtent) =
+        x.vertical_bearing == y.vertical_bearing &&
+        x.horizontal_bearing == y.horizontal_bearing &&
+        x.advance == y.advance &&
+        x.scale == y.scale
+
+FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale=64) = FontExtent(
+    div(MVector{2, Int}(fontmetric.vertBearingX, fontmetric.vertBearingY), scale),
+    div(MVector{2, Int}(fontmetric.horiBearingX, fontmetric.horiBearingY), scale),
+    div(MVector{2, Int}(fontmetric.horiAdvance, fontmetric.vertAdvance), scale),
+    div(MVector{2, Int}(fontmetric.width, fontmetric.height), scale)
+)
 
 const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
-function init()
+function ft_init()
     global FREE_FONT_LIBRARY
     FREE_FONT_LIBRARY[1] != C_NULL && error("Freetype already initalized. init() called two times?")
     err = FT_Init_FreeType(FREE_FONT_LIBRARY)
     return err == 0
 end
 
-function done()
+function ft_done()
     global FREE_FONT_LIBRARY
     FREE_FONT_LIBRARY[1] == C_NULL && error("Library == CNULL. FreeTypeAbstraction.done() called before init(), or done called two times?")
     err = FT_Done_FreeType(FREE_FONT_LIBRARY[1])
     FREE_FONT_LIBRARY[1] = C_NULL
     return err == 0
 end
-
 
 function newface(facename, faceindex::Real=0, ftlib=FREE_FONT_LIBRARY)
 	face 	= (FT_Face)[C_NULL]
@@ -52,16 +67,15 @@ function setpixelsize(face, size)
     end
 end
 
-
 function kerning(c1::Char, c2::Char, face::Array{Ptr{FreeType.FT_FaceRec},1}, divisor::Float32)
     i1 = FT_Get_Char_Index(face[], c1)
     i2 = FT_Get_Char_Index(face[], c2)
     kernVec = Array(FreeType.FT_Vector, 1)
     err = FT_Get_Kerning(face[], i1, i2, FreeType.FT_KERNING_DEFAULT, pointer(kernVec))
     if err != 0
-        return zero(Vec{2, Float32})
+        return zero(MVector{2, Float32})
     end
-    return Vec{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
+    return MVector{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
 end
 
 function loadchar(face, c::Char)
@@ -78,6 +92,14 @@ function renderface(face, c::Char, pixelsize=(32,32))
     return glyphbitmap(glyphRec.bitmap), FontExtent(glyphRec.metrics)
 end
 
+function getextent(face, c::Char, pixelsize)
+    setpixelsize(face, pixelsize)
+    faceRec = unsafe_load(face[1])
+    loadchar(face, c)
+    glyphRec = unsafe_load(faceRec.glyph)
+    FontExtent(glyphRec.metrics)
+end
+
 function glyphbitmap(bmpRec::FreeType.FT_Bitmap)
     @assert bmpRec.pixel_mode == FreeType.FT_PIXEL_MODE_GRAY
     bmp = Array(UInt8, bmpRec.width, bmpRec.rows)
@@ -87,7 +109,7 @@ function glyphbitmap(bmpRec::FreeType.FT_Bitmap)
     end
 
     for r = 1:bmpRec.rows
-        srcArray = pointer_to_array(row, bmpRec.width)
+        srcArray = unsafe_wrap(Array, row, bmpRec.width)
         bmp[:, r] = srcArray
         row += bmpRec.pitch
     end
