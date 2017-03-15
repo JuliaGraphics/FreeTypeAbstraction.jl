@@ -1,24 +1,20 @@
 # FreeTypeAbstraction
 
-Easily load and render Fonts:
+Draw text into a Matrix.
 
 ```Julia
 
-using FreeTypeAbstraction, StaticArrays
-using Base.Test
+using FreeTypeAbstraction
 
-# write your own tests here
+# load a font
 face = newface("hack_regular.ttf")
 
+# render a character
 img, metric = renderface(face, 'C')
-@test size(img) == (15, 23)
-@test typeof(img) == Array{UInt8,2}
-@test metric == FontExtent(
-	MVector(-8,4),
-	MVector(2,23),
-	MVector(19,31),
-	MVector(15,23)
-)
+
+# render a string into an existing matrix
+myarray = zeros(UInt8,100,100)
+renderstring(myarray, "hello", face, (10,10), 90, 10, halign=:hright)
 ```
 
 credits to @aaalexandrov from whom most of the code stems.
