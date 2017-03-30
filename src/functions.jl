@@ -182,7 +182,11 @@ function renderstring!{T<:Union{Real,Colorant}}(
     )
     bitmapmax = typemax(eltype(bitmaps[1]))
 
-    bcolor == nothing || (img[py-ymax+1:py-ymin-1, px-1:px+sumadvancex-1] = bcolor)
+    imgh, imgw = size(img)
+    if bcolor != nothing
+      img[clamp(py-ymax+1, 1, imgh) : clamp(py-ymin-1, 1, imgh),
+          clamp(px-1, 1, imgw) : clamp(px+sumadvancex-1, 1, imgw)] = bcolor
+    end
 
     local prev_char::Char
     for (istr, char) = enumerate(str)
@@ -194,14 +198,16 @@ function renderstring!{T<:Union{Real,Colorant}}(
             kx, ky = map(x-> round(Int, x), kerning(prev_char, char, face, 64.0f0))
             px += kx
         end
+        cliprowlo, cliprowhi = max(0, by-py), max(0, h+py-by-imgh)
+        clipcollo, clipcolhi = max(0, bx-px), max(0, w+px-bx-imgw)
         if bcolor == nothing
-            for row=1:h, col=1:w
+            for row = 1+cliprowlo : h-cliprowhi, col = 1+clipcollo : w-clipcolhi
                 bitmaps[istr][col,row]==0 && continue
                 c1 = bitmaps[istr][col,row] / bitmapmax * fcolor
                 img[row+py-by, col+px-bx] = T <: Integer ? round(T, c1) : T(c1)
             end
         else
-            for row = 1:h, col = 1:w
+            for row = 1+cliprowlo : h-cliprowhi, col = 1+clipcollo : w-clipcolhi
                 bitmaps[istr][col, row] == 0 && continue
                 w1 = bitmaps[istr][col, row] / bitmapmax
                 c1 = w1 * fcolor

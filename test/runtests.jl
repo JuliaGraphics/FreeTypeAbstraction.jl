@@ -59,5 +59,8 @@ a = renderstring!(zeros(Float32,20,100), "helgo", face, (10,10), 10, 50)
 a = renderstring!(zeros(Float64,20,100), "helgo", face, (10,10), 10, 50)
 @test maximum(a) <= 1.0
 
-a = renderstring!(zeros(Gray,20,100), "helgo", face, (10,10), 10, 50)
-a = renderstring!(zeros(Gray{Float64},20,100), "helgo", face, (10,10), 10, 50, fcolor=Gray(0.5))
+renderstring!(zeros(Gray,20,100), "helgo", face, (10,10), 10, 50)
+renderstring!(zeros(Gray{Float64},20,100), "helgo", face, (10,10), 10, 50, fcolor=Gray(0.5))
+
+renderstring!(zeros(UInt8,20,100), "helgo", face, (10,10), 0, 0, halign=:hcenter, valign=:vcenter)
+renderstring!(zeros(UInt8,20,100), "helgo", face, (10,10), 25, 80)
