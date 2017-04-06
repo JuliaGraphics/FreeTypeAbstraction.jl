@@ -1,36 +1,62 @@
+const Vec = SVector
 immutable FontExtent{T}
-    vertical_bearing    ::MVector{2, T}
-    horizontal_bearing  ::MVector{2, T}
+    vertical_bearing::Vec{2, T}
+    horizontal_bearing::Vec{2, T}
 
-    advance             ::MVector{2, T}
-    scale               ::MVector{2, T}
+    advance::Vec{2, T}
+    scale::Vec{2, T}
 end
 
-import Base: ./, .*, ==
+import Base: /, *, ==
 
-.*{T, T2}(f::FontExtent{T}, scaling::MVector{2, T2}) = FontExtent(
-    f.vertical_bearing * scaling[1],
-    f.horizontal_bearing * scaling[2],
-    f.advance .* scaling,
-    f.scale .* scaling )
-./{T, T2}(f::FontExtent{T}, scaling::MVector{2, T2}) = FontExtent(
-    f.vertical_bearing ./ scaling,
-    f.horizontal_bearing ./ scaling,
-    f.advance ./ scaling,
-    f.scale ./ scaling )
-==(x::FontExtent, y::FontExtent) =
-        x.vertical_bearing == y.vertical_bearing &&
-        x.horizontal_bearing == y.horizontal_bearing &&
-        x.advance == y.advance &&
-        x.scale == y.scale
+function Base.broadcast{T, T2}(op::typeof(*), f::FontExtent{T}, scaling::Vec{2, T2})
+    FontExtent(
+        op(f.vertical_bearing, scaling[1]),
+        op(f.horizontal_bearing, scaling[2]),
+        op(f.advance, scaling),
+        op(f.scale, scaling),
+    )
+end
+function Base.broadcast{T, T2}(op::Function, ::Type{T}, f::FontExtent{T2})
+    FontExtent(
+        op.(T, f.vertical_bearing),
+        op.(T, f.horizontal_bearing),
+        op.(T, f.advance),
+        op.(T, f.scale),
+    )
+end
 
-FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale=64) = FontExtent(
-    div(MVector{2, Int}(fontmetric.vertBearingX, fontmetric.vertBearingY), scale),
-    div(MVector{2, Int}(fontmetric.horiBearingX, fontmetric.horiBearingY), scale),
-    div(MVector{2, Int}(fontmetric.horiAdvance, fontmetric.vertAdvance), scale),
-    div(MVector{2, Int}(fontmetric.width, fontmetric.height), scale)
-)
+function Base.broadcast{T, T2}(op::Function, f::FontExtent{T}, scaling::Vec{2, T2})
+    FontExtent(
+        op(f.vertical_bearing, scaling),
+        op(f.horizontal_bearing, scaling),
+        op(f.advance, scaling),
+        op(f.scale, scaling),
+    )
+end
 
+function FontExtent{T <: AbstractFloat}(fontmetric::FreeType.FT_Glyph_Metrics, scale::T = 64.0)
+    FontExtent(
+        Vec{2, T}(fontmetric.vertBearingX, fontmetric.vertBearingY) / scale,
+        Vec{2, T}(fontmetric.horiBearingX, fontmetric.horiBearingY) / scale,
+        Vec{2, T}(fontmetric.horiAdvance, fontmetric.vertAdvance) / scale,
+        Vec{2, T}(fontmetric.width, fontmetric.height) / scale
+    )
+end
+function ==(x::FontExtent, y::FontExtent)
+    x.vertical_bearing == y.vertical_bearing &&
+    x.horizontal_bearing == y.horizontal_bearing &&
+    x.advance == y.advance &&
+    x.scale == y.scale
+end
+function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer)
+    FontExtent(
+        div.(Vec{2, Int}(fontmetric.vertBearingX, fontmetric.vertBearingY), scale),
+        div.(Vec{2, Int}(fontmetric.horiBearingX, fontmetric.horiBearingY), scale),
+        div.(Vec{2, Int}(fontmetric.horiAdvance, fontmetric.vertAdvance), scale),
+        div.(Vec{2, Int}(fontmetric.width, fontmetric.height), scale)
+    )
+end
 const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
 function ft_init()
@@ -49,11 +75,11 @@ function ft_done()
 end
 
 function newface(facename, faceindex::Real=0, ftlib=FREE_FONT_LIBRARY)
-	face 	= (FT_Face)[C_NULL]
-    err 	= FT_New_Face(ftlib[1], facename, Int32(faceindex), face)
+    face = (FT_Face)[C_NULL]
+    err = FT_New_Face(ftlib[1], facename, Int32(faceindex), face)
     if err != 0
-        error("Couldn't load font $facename with error $err")
-        return face[1]
+    error("Couldn't load font $facename with error $err")
+    return face[1]
     end
     face
 end
@@ -61,21 +87,19 @@ end
 setpixelsize(face, x, y) = setpixelsize(face, (x, y))
 
 function setpixelsize(face, size)
-	err = FT_Set_Pixel_Sizes(face[1], UInt32(size[1]), UInt32(size[2]))
+    err = FT_Set_Pixel_Sizes(face[1], UInt32(size[1]), UInt32(size[2]))
     if err != 0
-        error("Couldn't set the pixel size for font with error $err")
+    error("Couldn't set the pixel size for font with error $err")
     end
 end
 
 function kerning(c1::Char, c2::Char, face::Array{Ptr{FreeType.FT_FaceRec},1}, divisor::Float32)
     i1 = FT_Get_Char_Index(face[], c1)
     i2 = FT_Get_Char_Index(face[], c2)
-    kernVec = Array(FreeType.FT_Vector, 1)
+    kernVec = Vector{FreeType.FT_Vector}(1)
     err = FT_Get_Kerning(face[], i1, i2, FreeType.FT_KERNING_DEFAULT, pointer(kernVec))
-    if err != 0
-        return zero(MVector{2, Float32})
-    end
-    return MVector{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
+    err != 0 && return zero(Vec{2, Float32})
+    return Vec{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
 end
 
 function loadchar(face, c::Char)
@@ -83,7 +107,7 @@ function loadchar(face, c::Char)
     @assert err == 0
 end
 
-function renderface(face, c::Char, pixelsize=(32,32))
+function renderface(face, c::Char, pixelsize = (32,32))
     setpixelsize(face, pixelsize)
     faceRec = unsafe_load(face[1])
     loadchar(face, c)
@@ -102,7 +126,7 @@ end
 
 function glyphbitmap(bmpRec::FreeType.FT_Bitmap)
     @assert bmpRec.pixel_mode == FreeType.FT_PIXEL_MODE_GRAY
-    bmp = Array(UInt8, bmpRec.width, bmpRec.rows)
+    bmp = Matrix{UInt8}(bmpRec.width, bmpRec.rows)
     row = bmpRec.buffer
     if bmpRec.pitch < 0
         row -= bmpRec.pitch * (rbmpRec.rows - 1)
@@ -120,7 +144,7 @@ one_or_typemax{T<:Union{Real,Colorant}}(::Type{T}) = T<:Integer ? typemax(T) : o
 
 """
     renderstring!(img::AbstractMatrix, str::String, face, pixelsize, y0, x0;
-            fcolor=one_or_typemax(T), bcolor=zero(T), halign=:hleft, valign=:vbaseline) -> Matrix
+    fcolor=one_or_typemax(T), bcolor=zero(T), halign=:hleft, valign=:vbaseline) -> Matrix
 
 Render `str` into `img` using the font `face` of size `pixelsize` at coordinates `y0,x0`.
 
@@ -131,56 +155,61 @@ Render `str` into `img` using the font `face` of size `pixelsize` at coordinates
 * `halign`: :hleft, :hcenter, or :hright
 * `valign`: :vtop, :vcenter, :vbaseline, or :vbottom
 """
-function renderstring!{T<:Union{Real,Colorant}}(img::AbstractMatrix{T}, str::String, face, pixelsize, y0, x0;
-            fcolor::T=one_or_typemax(T), bcolor::Union{T,Void}=zero(T), halign::Symbol=:hleft, valign::Symbol=:vbaseline)
-    bitmaps = Array(Array{UInt8,2}, endof(str))
-    metrics = Array(FontExtent{Int64}, endof(str))
+function renderstring!{T<:Union{Real,Colorant}}(
+        img::AbstractMatrix{T}, str::String, face, pixelsize, y0, x0;
+        fcolor::T = one_or_typemax(T), bcolor::Union{T,Void} = zero(T),
+        halign::Symbol = :hleft, valign::Symbol = :vbaseline
+    )
+    bitmaps = Vector{Matrix{UInt8}}(endof(str))
+    metrics = Vector{FontExtent{Int}}(endof(str))
     ymin = ymax = sumadvancex = 0
-    for (istr,char) = enumerate(str)
-        bitmap, metric = renderface(face, char, pixelsize)
+    for (istr, char) = enumerate(str)
+        bitmap, metric_float = renderface(face, char, pixelsize)
+        metric = round.(Int, metric_float)
         bitmaps[istr] = bitmap
         metrics[istr] = metric
-        w,h = metric.scale.data
-        bx,by = metric.horizontal_bearing
-        ymin = min(ymin,by-h)
-        ymax = max(ymax,by)
+        w, h = metric.scale
+        bx, by = metric.horizontal_bearing
+        ymin = min(ymin, by - h)
+        ymax = max(ymax, by)
         sumadvancex += metric.advance[1]
     end
 
-    px = x0 - (halign==:hright ? sumadvancex : halign==:hcenter ? sumadvancex>>1 : 0)
-    py = y0 + (valign==:vtop ? ymax : valign==:vbottom ? ymin :
-            valign==:vcenter ? (ymax-ymin)>>1+ymin : 0)
+    px = x0 - (halign == :hright ? sumadvancex : halign == :hcenter ? sumadvancex >> 1 : 0)
+    py = y0 + (
+        valign == :vtop ? ymax : valign == :vbottom ? ymin :
+        valign == :vcenter ? (ymax - ymin) >> 1 + ymin : 0
+    )
     bitmapmax = typemax(eltype(bitmaps[1]))
 
-    bcolor==nothing || (img[py-ymax+1:py-ymin-1, px-1:px+sumadvancex-1] = bcolor)
+    bcolor == nothing || (img[py-ymax+1:py-ymin-1, px-1:px+sumadvancex-1] = bcolor)
 
-    local prev_char
-    for (istr,char) = enumerate(str)
-        w,h = metrics[istr].scale.data
-        bx,by = metrics[istr].horizontal_bearing
-        if istr==1
-            prev_char=char
+    local prev_char::Char
+    for (istr, char) = enumerate(str)
+        w, h = metrics[istr].scale
+        bx, by = metrics[istr].horizontal_bearing
+        if istr == 1
+            prev_char = char
         else
-            kx, ky = kerning(prev_char, char, face, 64.0f0)
-            px += round(Int,kx)
+            kx, ky = round.(Int, kerning(prev_char, char, face, 64.0f0))
+            px += kx
         end
-        if bcolor==nothing
+        if bcolor == nothing
             for row=1:h, col=1:w
                 bitmaps[istr][col,row]==0 && continue
                 c1 = bitmaps[istr][col,row] / bitmapmax * fcolor
-                img[row+py-by, col+px-bx] = T<:Integer ? round(T,c1) : T(c1)
+                img[row+py-by, col+px-bx] = T <: Integer ? round(T, c1) : T(c1)
             end
         else
-            for row=1:h, col=1:w
-                bitmaps[istr][col,row]==0 && continue
-                w1 = bitmaps[istr][col,row] / bitmapmax
+            for row = 1:h, col = 1:w
+                bitmaps[istr][col, row] == 0 && continue
+                w1 = bitmaps[istr][col, row] / bitmapmax
                 c1 = w1 * fcolor
                 c0 = (1.0 - w1) * bcolor
-                img[row+py-by, col+px-bx] = T<:Integer ? round(T,c1+c0) : T(c1+c0)
+                img[row + py - by, col + px - bx] = T <: Integer ? round(T, c1 + c0) : T(c1 + c0)
             end
         end
         px += metrics[istr].advance[1]
     end
-
-    img 
+    img
 end
