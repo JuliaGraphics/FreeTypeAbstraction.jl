@@ -9,7 +9,7 @@ end
 
 import Base: /, *, ==
 
-function Base.broadcast{T, T2}(op::typeof(*), f::FontExtent{T}, scaling::Vec{2, T2})
+function Base.broadcast{T, T2}(op::typeof(*), f::FontExtent{T}, scaling::StaticVector{T2})
     FontExtent(
         op(f.vertical_bearing, scaling[1]),
         op(f.horizontal_bearing, scaling[2]),
@@ -26,12 +26,12 @@ function Base.broadcast{T, T2}(op::Function, ::Type{T}, f::FontExtent{T2})
     )
 end
 
-function Base.broadcast{T, T2}(op::Function, f::FontExtent{T}, scaling::Vec{2, T2})
+function Base.broadcast{T, T2}(op::typeof(/), f::FontExtent{T}, scaling::StaticVector{T2})
     FontExtent(
-        op(f.vertical_bearing, scaling),
-        op(f.horizontal_bearing, scaling),
-        op(f.advance, scaling),
-        op(f.scale, scaling),
+        f.vertical_bearing ./ scaling,
+        f.horizontal_bearing ./ scaling,
+        f.advance ./ scaling,
+        f.scale ./ scaling,
     )
 end
 
