@@ -1,4 +1,3 @@
-Pkg.checkout("StaticArrays", "sd/fixedsizearrays")
 using FreeTypeAbstraction, StaticArrays, Colors, ColorVectorSpace
 using Base.Test
 using FreeTypeAbstraction: Vec
