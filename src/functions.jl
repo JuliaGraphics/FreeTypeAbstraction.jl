@@ -19,10 +19,10 @@ function Base.broadcast{T, T2}(op::typeof(*), f::FontExtent{T}, scaling::StaticV
 end
 function Base.broadcast{T, T2}(op::Function, ::Type{T}, f::FontExtent{T2})
     FontExtent(
-        op.(T, f.vertical_bearing),
-        op.(T, f.horizontal_bearing),
-        op.(T, f.advance),
-        op.(T, f.scale),
+        map(x-> op(T, x), f.vertical_bearing),
+        map(x-> op(T, x), f.horizontal_bearing),
+        map(x-> op(T, x), f.advance),
+        map(x-> op(T, x), f.scale),
     )
 end
 
@@ -191,7 +191,7 @@ function renderstring!{T<:Union{Real,Colorant}}(
         if istr == 1
             prev_char = char
         else
-            kx, ky = round.(Int, kerning(prev_char, char, face, 64.0f0))
+            kx, ky = map(x-> round(Int, x), kerning(prev_char, char, face, 64.0f0))
             px += kx
         end
         if bcolor == nothing
