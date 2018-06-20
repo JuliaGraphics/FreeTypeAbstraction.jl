@@ -75,7 +75,7 @@ for path in fontpaths
     show(readdir(path))
 end
 
-@testset "finding fonts"
+@testset "finding fonts" begin
     fonts = [
         "Georgia",
         "Palatino Linotype",
