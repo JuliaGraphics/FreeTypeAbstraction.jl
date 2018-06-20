@@ -76,22 +76,24 @@ for path in fontpaths
     show(readdir(path))
 end
 
-@testset "finding fonts" begin
+fonts = [
+    "Times New Roman",
+    "Arial",
+    "Comic Sans MS",
+    "Impact",
+    "Tahoma",
+    "Trebuchet MS",
+    "Verdana",
+    "Courier New",
+]
+if is_linux()
     fonts = [
-        "Times New Roman",
-        "Arial",
-        "Comic Sans MS",
-        "Impact",
-        "Tahoma",
-        "Trebuchet MS",
-        "Verdana",
-        "Courier New",
+        "dejavu sans",
     ]
-    if is_linux()
-        fonts = [
-            "dejavu sans",
-        ]
-    end
+end
+
+@testset "finding fonts" begin
+
     for font in fonts
         @testset "finding $font" begin
             @test findfont(font) != nothing
@@ -101,4 +103,14 @@ end
         @test findfont("Hack") == nothing
         @test findfont("Hack", additional_fonts = @__DIR__) != nothing
     end
+end
+
+
+@testset "loading lots of fonts" begin
+    for i = 1:10
+        for font in fonts
+            @time findfont(font)
+        end
+    end
+    @test "No Error" == "No Error"
 end

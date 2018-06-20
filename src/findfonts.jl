@@ -1,5 +1,4 @@
 
-
 if is_apple()
     function _font_paths()
         [
@@ -38,8 +37,6 @@ function freetype_can_read(font::String)
     uppercase(ext) in freetype_extensions()
 end
 
-const loaded_fonts = Ptr{FreeType.FT_FaceRec}[]
-
 function loaded_faces()
     if isempty(loaded_fonts)
         for path in fontpaths()
@@ -60,8 +57,6 @@ function loaded_faces()
 end
 
 
-const custom_fontcache = Dict{String, Ptr{FreeType.FT_FaceRec}}()
-
 function match_font(face, name, italic, bold)
     ft_rect = unsafe_load(face)
     ft_rect.family_name == C_NULL && return false
@@ -71,22 +66,18 @@ function match_font(face, name, italic, bold)
     return contains(fname, lowercase(name)) # && italic && bold
 end
 function findfont(name::String; italic = false, bold = false, additional_fonts::String = "")
-    for face in loaded_faces()
-        match_font(face, name, italic, bold) && return face
-    end
-    if !isempty(additional_fonts)
-        for font in readdir(additional_fonts)
-            ftpath = joinpath(additional_fonts, font)
-            face = if haskey(custom_fontcache, ftpath)
-                custom_fontcache[ftpath]
-            else
-                try
-                    get!(custom_fontcache, ftpath, newface(ftpath)[1])
-                catch e
-                    continue
-                end
+    font_folders = copy(fontpaths())
+    isempty(additional_fonts) || push!(font_folders, additional_fonts)
+    for folder in font_folders
+        for font in readdir(folder)
+            fpath = joinpath(folder, font)
+            face = try
+                newface(fpath)[]
+            catch e
+                continue
             end
             match_font(face, name, italic, bold) && return face
+            FT_Done_Face(face)
         end
     end
     return nothing
