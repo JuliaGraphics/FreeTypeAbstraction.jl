@@ -48,14 +48,35 @@ function loaded_faces()
     return loaded_fonts
 end
 
-function findfont(name::String; italic = false, bold = false)
+
+const custom_fontcache = Dict{String, Ptr{FreeType.FT_FaceRec}}()
+
+function match_font(face, name, italic, bold)
+    ft_rect = unsafe_load(face)
+    fname = lowercase(unsafe_string(ft_rect.family_name))
+    println(">> ", fname)
+    italic = italic == ((ft_rect.style_flags & FreeType.FT_STYLE_FLAG_ITALIC) > 0)
+    bold = bold == ((ft_rect.style_flags & FreeType.FT_STYLE_FLAG_BOLD) > 0)
+    return contains(fname, lowercase(name)) # && italic && bold
+end
+function findfont(name::String; italic = false, bold = false, additional_fonts::String = "")
     for face in loaded_faces()
-        ft_rect = unsafe_load(face)
-        fname = lowercase(unsafe_string(ft_rect.family_name))
-        italic = italic == ((ft_rect.style_flags & FreeType.FT_STYLE_FLAG_ITALIC) > 0)
-        bold = bold == ((ft_rect.style_flags & FreeType.FT_STYLE_FLAG_BOLD) > 0)
-        if contains(fname, lowercase(name)) # && italic && bold 
-            return face
+        match_font(face, name, italic, bold) && return face
+    end
+    if !isempty(additional_fonts)
+        for font in readdir(additional_fonts)
+            println(font)
+            ftpath = joinpath(additional_fonts, font)
+            face = if haskey(custom_fontcache, ftpath)
+                custom_fontcache[ftpath]
+            else
+                try
+                    get!(custom_fontcache, ftpath, newface(ftpath)[1])
+                catch e
+                    continue
+                end
+            end
+            match_font(face, name, italic, bold) && return face
         end
     end
     return nothing
