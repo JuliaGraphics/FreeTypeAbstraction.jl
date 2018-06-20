@@ -67,6 +67,14 @@ renderstring!(zeros(UInt8,20,100), "helgo", face, (10,10), 25, 80)
 
 # Find fonts
 # these fonts should be available on all platforms:
+
+# debug travis... does it even have fonts?
+fontpaths = FreeTypeAbstraction.fontpaths()
+isempty(fontpaths) && println("Doesn't have any font folders")
+for path in fontpaths
+    show(readdir(path))
+end
+
 @testset "finding fonts"
     fonts = [
         "Georgia",
