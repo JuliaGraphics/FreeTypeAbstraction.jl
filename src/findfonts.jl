@@ -11,12 +11,26 @@ if is_apple()
 elseif is_windows()
     _font_paths() = [joinpath(ENV["WINDIR"], "fonts")]
 else
+    function add_recursive(result, path)
+        for p in readdir(path)
+            pabs = joinpath(path, p)
+            if isdir(pabs)
+                push!(result, pabs)
+                add_recursive(result, pabs)
+            end
+        end
+    end
     function _font_paths()
-        [
+        x = [
             "/usr/share/fonts",
             "~/.fonts",
             "/usr/local/share/fonts",
         ]
+        result = copy(x)
+        for p in x
+            add_recursive(result, p)
+        end
+        result
     end
 end
 
