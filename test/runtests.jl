@@ -2,7 +2,8 @@ using FreeTypeAbstraction, StaticArrays, Colors, ColorVectorSpace
 using Base.Test
 using FreeTypeAbstraction: Vec
 
-face = newface("hack_regular.ttf")
+face = newface(joinpath(@__DIR__, "hack_regular.ttf"))
+f = unsafe_load(face[])
 
 img, metric = renderface(face, 'C')
 @test size(img) == (15, 23)
@@ -67,23 +68,37 @@ renderstring!(zeros(UInt8,20,100), "helgo", face, (10,10), 25, 80)
 
 # Find fonts
 # these fonts should be available on all platforms:
-fonts = [
-    "Georgia",
-    "Palatino Linotype",
-    "Times New Roman",
-    "Arial",
-    "Comic Sans MS",
-    "Impact",
-    "Lucida Sans Unicode",
-    "Tahoma",
-    "Trebuchet MS",
-    "Verdana",
-    "Courier New",
-    "Lucida Console",
-]
 
-for font in fonts
-    @testset "finding $font" begin
-        @test findfont(font) != nothing
+# debug travis... does it even have fonts?
+fontpaths = FreeTypeAbstraction.fontpaths()
+isempty(fontpaths) && println("Doesn't have any font folders")
+for path in fontpaths
+    show(readdir(path))
+end
+
+@testset "finding fonts" begin
+    fonts = [
+        "Times New Roman",
+        "Arial",
+        "Comic Sans MS",
+        "Impact",
+        "Tahoma",
+        "Trebuchet MS",
+        "Verdana",
+        "Courier New",
+    ]
+    if is_linux()
+        fonts = [
+            "dejavu sans",
+        ]
+    end
+    for font in fonts
+        @testset "finding $font" begin
+            @test findfont(font) != nothing
+        end
+    end
+    @testset "find in additional dir" begin
+        @test findfont("Hack") == nothing
+        @test findfont("Hack", additional_fonts = @__DIR__) != nothing
     end
 end
