@@ -64,3 +64,26 @@ renderstring!(zeros(Gray{Float64},20,100), "helgo", face, (10,10), 10, 50, fcolo
 
 renderstring!(zeros(UInt8,20,100), "helgo", face, (10,10), 0, 0, halign=:hcenter, valign=:vcenter)
 renderstring!(zeros(UInt8,20,100), "helgo", face, (10,10), 25, 80)
+
+# Find fonts
+# these fonts should be available on all platforms:
+fonts = [
+    "Georgia",
+    "Palatino Linotype",
+    "Times New Roman",
+    "Arial",
+    "Comic Sans MS",
+    "Impact",
+    "Lucida Sans Unicode",
+    "Tahoma",
+    "Trebuchet MS",
+    "Verdana",
+    "Courier New",
+    "Lucida Console",
+]
+
+for font in fonts
+    @testset "finding $font" begin
+        @test findfont(font) != nothing
+    end
+end
