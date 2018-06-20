@@ -21,14 +21,11 @@ else
         end
     end
     function _font_paths()
-        x = [
-            "/usr/share/fonts",
-            "~/.fonts",
-            "/usr/local/share/fonts",
-        ]
-        result = copy(x)
-        for p in x
-            add_recursive(result, p)
+        result = String[]
+        for p in ("/usr/share/fonts", joinpath(homedir(), "/.fonts"), "/usr/local/share/fonts",)
+            if isdir(p)
+                add_recursive(result, p)
+            end
         end
         result
     end
