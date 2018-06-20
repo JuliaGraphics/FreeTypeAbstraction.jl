@@ -64,6 +64,7 @@ const custom_fontcache = Dict{String, Ptr{FreeType.FT_FaceRec}}()
 
 function match_font(face, name, italic, bold)
     ft_rect = unsafe_load(face)
+    ft_rect.family_name == C_NULL && return false
     fname = lowercase(unsafe_string(ft_rect.family_name))
     italic = italic == ((ft_rect.style_flags & FreeType.FT_STYLE_FLAG_ITALIC) > 0)
     bold = bold == ((ft_rect.style_flags & FreeType.FT_STYLE_FLAG_BOLD) > 0)

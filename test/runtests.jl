@@ -3,6 +3,7 @@ using Base.Test
 using FreeTypeAbstraction: Vec
 
 face = newface(joinpath(@__DIR__, "hack_regular.ttf"))
+f = unsafe_load(face[])
 
 img, metric = renderface(face, 'C')
 @test size(img) == (15, 23)
@@ -77,26 +78,27 @@ end
 
 @testset "finding fonts" begin
     fonts = [
-        "Georgia",
-        "Palatino Linotype",
         "Times New Roman",
         "Arial",
         "Comic Sans MS",
         "Impact",
-        "Lucida Sans Unicode",
         "Tahoma",
         "Trebuchet MS",
         "Verdana",
         "Courier New",
-        "Lucida Console",
     ]
+    if is_linux()
+        fonts = [
+            "dejavu sans",
+        ]
+    end
     for font in fonts
         @testset "finding $font" begin
             @test findfont(font) != nothing
         end
     end
     @testset "find in additional dir" begin
-        @test findfont("Hack regular") == nothing
-        @test findfont("Hack regular", additional_fonts = @__DIR__) == nothing
+        @test findfont("Hack") == nothing
+        @test findfont("Hack", additional_fonts = @__DIR__) != nothing
     end
 end
