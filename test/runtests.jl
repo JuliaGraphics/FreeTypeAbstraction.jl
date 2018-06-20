@@ -78,18 +78,14 @@ end
 
 @testset "finding fonts" begin
     fonts = [
-        #"Georgia",
-        "Palatino Linotype",
         "Times New Roman",
         "Arial",
         "Comic Sans MS",
         "Impact",
-        "Lucida Sans Unicode",
         "Tahoma",
         "Trebuchet MS",
         "Verdana",
         "Courier New",
-        "Lucida Console",
     ]
     if is_linux()
         fonts = [
