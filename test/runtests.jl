@@ -93,9 +93,7 @@ end
     ]
     if is_linux()
         fonts = [
-            "courier",
             "dejavu sans",
-            "freesans"
         ]
     end
     for font in fonts
