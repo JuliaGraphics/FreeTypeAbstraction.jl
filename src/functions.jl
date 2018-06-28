@@ -1,5 +1,5 @@
 const Vec = SVector
-immutable FontExtent{T}
+struct FontExtent{T}
     vertical_bearing::Vec{2, T}
     horizontal_bearing::Vec{2, T}
 
@@ -9,7 +9,7 @@ end
 
 import Base: /, *, ==
 
-function Base.broadcast{T, T2}(op::typeof(*), f::FontExtent{T}, scaling::StaticVector{T2})
+function Base.broadcast(op::typeof(*), f::FontExtent{T}, scaling::StaticVector{T2}) where {T, T2}
     FontExtent(
         op(f.vertical_bearing, scaling[1]),
         op(f.horizontal_bearing, scaling[2]),
@@ -17,7 +17,7 @@ function Base.broadcast{T, T2}(op::typeof(*), f::FontExtent{T}, scaling::StaticV
         op(f.scale, scaling),
     )
 end
-function Base.broadcast{T, T2}(op::Function, ::Type{T}, f::FontExtent{T2})
+function Base.broadcast(op::Function, ::Type{T}, f::FontExtent{T2}) where {T, T2}
     FontExtent(
         map(x-> op(T, x), f.vertical_bearing),
         map(x-> op(T, x), f.horizontal_bearing),
@@ -26,7 +26,7 @@ function Base.broadcast{T, T2}(op::Function, ::Type{T}, f::FontExtent{T2})
     )
 end
 
-function Base.broadcast{T, T2}(op::typeof(/), f::FontExtent{T}, scaling::StaticVector{T2})
+function Base.broadcast(op::typeof(/), f::FontExtent{T}, scaling::StaticVector{T2}) where {T, T2}
     FontExtent(
         f.vertical_bearing ./ scaling,
         f.horizontal_bearing ./ scaling,
@@ -35,7 +35,7 @@ function Base.broadcast{T, T2}(op::typeof(/), f::FontExtent{T}, scaling::StaticV
     )
 end
 
-function FontExtent{T <: AbstractFloat}(fontmetric::FreeType.FT_Glyph_Metrics, scale::T = 64.0)
+function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::T = 64.0) where T <: AbstractFloat
     FontExtent(
         Vec{2, T}(fontmetric.vertBearingX, fontmetric.vertBearingY) / scale,
         Vec{2, T}(fontmetric.horiBearingX, fontmetric.horiBearingY) / scale,
@@ -139,7 +139,7 @@ function glyphbitmap(bmpRec::FreeType.FT_Bitmap)
     return bmp
 end
 
-one_or_typemax{T<:Union{Real,Colorant}}(::Type{T}) = T<:Integer ? typemax(T) : one(T)
+one_or_typemax(::Type{T}) where {T<:Union{Real,Colorant}} = T<:Integer ? typemax(T) : one(T)
 
 """
     renderstring!(img::AbstractMatrix, str::String, face, pixelsize, y0, x0;
@@ -154,11 +154,11 @@ Render `str` into `img` using the font `face` of size `pixelsize` at coordinates
 * `halign`: :hleft, :hcenter, or :hright
 * `valign`: :vtop, :vcenter, :vbaseline, or :vbottom
 """
-function renderstring!{T<:Union{Real,Colorant}}(
+function renderstring!(
         img::AbstractMatrix{T}, str::String, face, pixelsize, y0, x0;
         fcolor::T = one_or_typemax(T), bcolor::Union{T,Void} = zero(T),
         halign::Symbol = :hleft, valign::Symbol = :vbaseline
-    )
+    ) where T<:Union{Real,Colorant}
     bitmaps = Vector{Matrix{UInt8}}(endof(str))
     metrics = Vector{FontExtent{Int}}(endof(str))
     ymin = ymax = sumadvancex = 0
