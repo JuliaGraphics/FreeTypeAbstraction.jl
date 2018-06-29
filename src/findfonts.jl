@@ -49,6 +49,7 @@ function loaded_faces()
                 fpath = joinpath(path, font)
                 try
                     push!(loaded_fonts, newface(fpath)[1])
+                catch
                 end
             end
         end
