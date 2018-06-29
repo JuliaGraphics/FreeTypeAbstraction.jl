@@ -9,84 +9,28 @@ end
 
 import Base: /, *, ==
 
-<<<<<<< HEAD
-if VERSION < v"0.7.0-DEV.5096"
 
-    function Base.broadcast{T, T2}(op::typeof(*), f::FontExtent{T}, scaling::StaticVector{T2})
-        FontExtent(
-            op.(f.vertical_bearing, scaling[1]),
-            op.(f.horizontal_bearing, scaling[2]),
-            op.(f.advance, scaling),
-            op.(f.scale, scaling),
-        )
-    end
-    function Base.broadcast{T, T2}(op::Function, ::Type{T}, f::FontExtent{T2})
-        FontExtent(
-            map(x-> op(T, x), f.vertical_bearing),
-            map(x-> op(T, x), f.horizontal_bearing),
-            map(x-> op(T, x), f.advance),
-            map(x-> op(T, x), f.scale),
-        )
-    end
+import Base.Broadcast: BroadcastStyle, AbstractArrayStyle, Broadcasted, DefaultArrayStyle, materialize!, flatten, Style, broadcasted
+BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
+BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
+BroadcastStyle(::Style{FontExtent}, x) = Style{FontExtent}()
+BroadcastStyle(x, ::Style{FontExtent}) = Style{FontExtent}()
 
-    function Base.broadcast{T, T2}(op::typeof(/), f::FontExtent{T}, scaling::StaticVector{T2})
-        FontExtent(
-            f.vertical_bearing ./ scaling,
-            f.horizontal_bearing ./ scaling,
-            f.advance ./ scaling,
-            f.scale ./ scaling,
-        )
-    end
-else
-    import Base.Broadcast: BroadcastStyle, AbstractArrayStyle, Broadcasted, DefaultArrayStyle, materialize!, flatten, Style, broadcasted
-    BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
-    BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
-    BroadcastStyle(::Style{FontExtent}, x) = Style{FontExtent}()
-    BroadcastStyle(x, ::Style{FontExtent}) = Style{FontExtent}()
-
-    function broadcasted(op::Function, f::FontExtent, scaling::StaticVector)
-        FontExtent(
-            op.(f.vertical_bearing, scaling[1]),
-            op.(f.horizontal_bearing, scaling[2]),
-            op.(f.advance, scaling),
-            op.(f.scale, scaling),
-        )
-    end
-    function broadcasted(op::Function, ::Type{T}, f::FontExtent) where T
-        FontExtent(
-            map(x-> op(T, x), f.vertical_bearing),
-            map(x-> op(T, x), f.horizontal_bearing),
-            map(x-> op(T, x), f.advance),
-            map(x-> op(T, x), f.scale),
-        )
-    end
-
-=======
-function Base.broadcast(op::typeof(*), f::FontExtent{T}, scaling::StaticVector{T2}) where {T, T2}
+function broadcasted(op::Function, f::FontExtent, scaling::StaticVector)
     FontExtent(
-        op(f.vertical_bearing, scaling[1]),
-        op(f.horizontal_bearing, scaling[2]),
-        op(f.advance, scaling),
-        op(f.scale, scaling),
+        op.(f.vertical_bearing, scaling[1]),
+        op.(f.horizontal_bearing, scaling[2]),
+        op.(f.advance, scaling),
+        op.(f.scale, scaling),
     )
 end
-function Base.broadcast(op::Function, ::Type{T}, f::FontExtent{T2}) where {T, T2}
+function broadcasted(op::Function, ::Type{T}, f::FontExtent) where T
     FontExtent(
         map(x-> op(T, x), f.vertical_bearing),
         map(x-> op(T, x), f.horizontal_bearing),
         map(x-> op(T, x), f.advance),
         map(x-> op(T, x), f.scale),
     )
-end
-
-function Base.broadcast(op::typeof(/), f::FontExtent{T}, scaling::StaticVector{T2}) where {T, T2}
-    FontExtent(
-        f.vertical_bearing ./ scaling,
-        f.horizontal_bearing ./ scaling,
-        f.advance ./ scaling,
-        f.scale ./ scaling,
-    )
->>>>>>> fbot/deps
 end
 
 function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::T = 64.0) where T <: AbstractFloat
