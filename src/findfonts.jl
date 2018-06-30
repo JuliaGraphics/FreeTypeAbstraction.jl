@@ -1,5 +1,5 @@
 
-if is_apple()
+if Sys.isapple()
     function _font_paths()
         [
             "/Library/Fonts", # Additional fonts that can be used by all users. This is generally where fonts go if they are to be used by other applications.
@@ -7,7 +7,7 @@ if is_apple()
             "/Network/Library/Fonts", # Fonts shared for users on a network
         ]
     end
-elseif is_windows()
+elseif Sys.iswindows()
     _font_paths() = [joinpath(ENV["WINDIR"], "fonts")]
 else
     function add_recursive(result, path)

@@ -93,7 +93,7 @@ end
 function kerning(c1::Char, c2::Char, face::Array{Ptr{FreeType.FT_FaceRec},1}, divisor::Float32)
     i1 = FT_Get_Char_Index(face[], c1)
     i2 = FT_Get_Char_Index(face[], c2)
-    kernVec = Vector{FreeType.FT_Vector}(1)
+    kernVec = Vector{FreeType.FT_Vector}(undef, 1)
     err = FT_Get_Kerning(face[], i1, i2, FreeType.FT_KERNING_DEFAULT, pointer(kernVec))
     err != 0 && return zero(Vec{2, Float32})
     return Vec{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
@@ -154,7 +154,7 @@ Render `str` into `img` using the font `face` of size `pixelsize` at coordinates
 """
 function renderstring!(
         img::AbstractMatrix{T}, str::String, face, pixelsize, y0, x0;
-        fcolor::T = one_or_typemax(T), bcolor::Union{T,Void} = zero(T),
+        fcolor::T = one_or_typemax(T), bcolor::Union{T,Nothing} = zero(T),
         halign::Symbol = :hleft, valign::Symbol = :vbaseline
     ) where T<:Union{Real,Colorant}
     bitmaps = Vector{Matrix{UInt8}}(endof(str))
