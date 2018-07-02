@@ -71,24 +71,23 @@ renderstring!(zeros(UInt8,20,100), "helgo", face, (10,10), 25, 80)
 
 # debug travis... does it even have fonts?
 fontpaths = FreeTypeAbstraction.fontpaths()
-isempty(fontpaths) && println("Doesn't have any font folders")
-for path in fontpaths
-    show(readdir(path))
-end
+isempty(fontpaths) && println("OS doesn't have any font folder")
 
-fonts = [
-    "Times New Roman",
-    "Arial",
-    "Comic Sans MS",
-    "Impact",
-    "Tahoma",
-    "Trebuchet MS",
-    "Verdana",
-    "Courier New",
-]
+
 if is_linux()
     fonts = [
         "dejavu sans",
+    ]
+else # OSX + windows have some more fonts installed per default
+    fonts = [
+        "Times New Roman",
+        "Arial",
+        "Comic Sans MS",
+        "Impact",
+        "Tahoma",
+        "Trebuchet MS",
+        "Verdana",
+        "Courier New",
     ]
 end
 
