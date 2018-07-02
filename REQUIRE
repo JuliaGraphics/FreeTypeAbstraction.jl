@@ -2,4 +2,4 @@ julia 0.7-alpha
 FreeType 2.0.0
 StaticArrays
 Colors
-ColorVectorSpace
+ColorVectorSpace 0.6.0
