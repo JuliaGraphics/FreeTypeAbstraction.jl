@@ -1,5 +1,5 @@
 using FreeTypeAbstraction, StaticArrays, Colors, ColorVectorSpace
-using Base.Test
+using Test
 using FreeTypeAbstraction: Vec
 
 face = newface(joinpath(@__DIR__, "hack_regular.ttf"))
@@ -74,7 +74,7 @@ fontpaths = FreeTypeAbstraction.fontpaths()
 isempty(fontpaths) && println("OS doesn't have any font folder")
 
 
-if is_linux()
+if Sys.islinux()
     fonts = [
         "dejavu sans",
     ]
