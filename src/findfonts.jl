@@ -57,13 +57,21 @@ function loaded_faces()
 end
 
 family_name(x::String) = replace(lowercase(x), ' ', "") # normalize
-family_name(x) = family_name(unsafe_string(x.family_name))
-style_name(x) = lowercase(unsafe_string(x.style_name))
 
+function family_name(x)
+    fname = x.family_name
+    fname == C_NULL && return ""
+    family_name(unsafe_string(fname))
+end
+
+function style_name(x)
+    sname = x.style_name
+    sname == C_NULL && return ""
+    lowercase(unsafe_string(sname))
+end
 
 function match_font(face, name, italic, bold)
     ft_rect = unsafe_load(face)
-    ft_rect.family_name == C_NULL && return false
     fname = family_name(ft_rect)
     sname = style_name(ft_rect)
     italic = italic == (sname == "italic")
