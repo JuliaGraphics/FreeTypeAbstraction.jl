@@ -56,18 +56,35 @@ function loaded_faces()
     return loaded_fonts
 end
 
+family_name(x::String) = replace(lowercase(x), ' ', "") # normalize
+
+function family_name(x)
+    fname = x.family_name
+    fname == C_NULL && return ""
+    family_name(unsafe_string(fname))
+end
+
+function style_name(x)
+    sname = x.style_name
+    sname == C_NULL && return ""
+    lowercase(unsafe_string(sname))
+end
 
 function match_font(face, name, italic, bold)
     ft_rect = unsafe_load(face)
-    ft_rect.family_name == C_NULL && return false
-    fname = lowercase(unsafe_string(ft_rect.family_name))
-    italic = italic == ((ft_rect.style_flags & FreeType.FT_STYLE_FLAG_ITALIC) > 0)
-    bold = bold == ((ft_rect.style_flags & FreeType.FT_STYLE_FLAG_BOLD) > 0)
-    return contains(fname, lowercase(name)) # && italic && bold
+    fname = family_name(ft_rect)
+    sname = style_name(ft_rect)
+    italic = italic == (sname == "italic")
+    bold = bold == (sname == "bold")
+    perfect_match = (fname == name) && italic && bold
+    fuzzy_match = contains(fname, name)
+    return perfect_match, fuzzy_match
 end
 function findfont(name::String; italic = false, bold = false, additional_fonts::String = "")
     font_folders = copy(fontpaths())
+    normalized_name = family_name(name)
     isempty(additional_fonts) || push!(font_folders, additional_fonts)
+    candidates = Ptr{FreeType.FT_FaceRec}[]
     for folder in font_folders
         for font in readdir(folder)
             fpath = joinpath(folder, font)
@@ -76,9 +93,19 @@ function findfont(name::String; italic = false, bold = false, additional_fonts::
             catch e
                 continue
             end
-            match_font(face, name, italic, bold) && return face
-            FT_Done_Face(face)
+            perfect_match, fuzzy_match = match_font(face, normalized_name, italic, bold)
+            perfect_match && return face
+            if fuzzy_match
+                push!(candidates, face)
+            else
+                FT_Done_Face(face)
+            end
         end
+    end
+    if !isempty(candidates)
+        final_candidate = pop!(candidates)
+        foreach(FT_Done_Face, candidates)
+        return final_candidate
     end
     return nothing
 end
