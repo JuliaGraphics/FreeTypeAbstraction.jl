@@ -9,15 +9,22 @@ end
 
 import Base: /, *, ==
 
-function Base.broadcast(op::typeof(*), f::FontExtent{T}, scaling::StaticVector{T2}) where {T, T2}
+
+import Base.Broadcast: BroadcastStyle, AbstractArrayStyle, Broadcasted, DefaultArrayStyle, materialize!, flatten, Style, broadcasted
+BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
+BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
+BroadcastStyle(::Style{FontExtent}, x) = Style{FontExtent}()
+BroadcastStyle(x, ::Style{FontExtent}) = Style{FontExtent}()
+
+function broadcasted(op::Function, f::FontExtent, scaling::StaticVector)
     FontExtent(
-        op(f.vertical_bearing, scaling[1]),
-        op(f.horizontal_bearing, scaling[2]),
-        op(f.advance, scaling),
-        op(f.scale, scaling),
+        op.(f.vertical_bearing, scaling[1]),
+        op.(f.horizontal_bearing, scaling[2]),
+        op.(f.advance, scaling),
+        op.(f.scale, scaling),
     )
 end
-function Base.broadcast(op::Function, ::Type{T}, f::FontExtent{T2}) where {T, T2}
+function broadcasted(op::Function, ::Type{T}, f::FontExtent) where T
     FontExtent(
         map(x-> op(T, x), f.vertical_bearing),
         map(x-> op(T, x), f.horizontal_bearing),
@@ -26,21 +33,12 @@ function Base.broadcast(op::Function, ::Type{T}, f::FontExtent{T2}) where {T, T2
     )
 end
 
-function Base.broadcast(op::typeof(/), f::FontExtent{T}, scaling::StaticVector{T2}) where {T, T2}
-    FontExtent(
-        f.vertical_bearing ./ scaling,
-        f.horizontal_bearing ./ scaling,
-        f.advance ./ scaling,
-        f.scale ./ scaling,
-    )
-end
-
 function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::T = 64.0) where T <: AbstractFloat
     FontExtent(
-        Vec{2, T}(fontmetric.vertBearingX, fontmetric.vertBearingY) / scale,
-        Vec{2, T}(fontmetric.horiBearingX, fontmetric.horiBearingY) / scale,
-        Vec{2, T}(fontmetric.horiAdvance, fontmetric.vertAdvance) / scale,
-        Vec{2, T}(fontmetric.width, fontmetric.height) / scale
+        Vec{2, T}(fontmetric.vertBearingX, fontmetric.vertBearingY) ./ scale,
+        Vec{2, T}(fontmetric.horiBearingX, fontmetric.horiBearingY) ./ scale,
+        Vec{2, T}(fontmetric.horiAdvance, fontmetric.vertAdvance) ./ scale,
+        Vec{2, T}(fontmetric.width, fontmetric.height) ./ scale
     )
 end
 function ==(x::FontExtent, y::FontExtent)
@@ -95,7 +93,7 @@ end
 function kerning(c1::Char, c2::Char, face::Array{Ptr{FreeType.FT_FaceRec},1}, divisor::Float32)
     i1 = FT_Get_Char_Index(face[], c1)
     i2 = FT_Get_Char_Index(face[], c2)
-    kernVec = Vector{FreeType.FT_Vector}(1)
+    kernVec = Vector{FreeType.FT_Vector}(undef, 1)
     err = FT_Get_Kerning(face[], i1, i2, FreeType.FT_KERNING_DEFAULT, pointer(kernVec))
     err != 0 && return zero(Vec{2, Float32})
     return Vec{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
@@ -156,7 +154,7 @@ Render `str` into `img` using the font `face` of size `pixelsize` at coordinates
 """
 function renderstring!(
         img::AbstractMatrix{T}, str::String, face, pixelsize, y0, x0;
-        fcolor::T = one_or_typemax(T), bcolor::Union{T,Void} = zero(T),
+        fcolor::T = one_or_typemax(T), bcolor::Union{T,Nothing} = zero(T),
         halign::Symbol = :hleft, valign::Symbol = :vbaseline
     ) where T<:Union{Real,Colorant}
     bitmaps = Vector{Matrix{UInt8}}(endof(str))
