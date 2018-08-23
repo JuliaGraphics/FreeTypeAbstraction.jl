@@ -12,7 +12,6 @@ import Base: /, *, ==
 
 import Base.Broadcast: BroadcastStyle, AbstractArrayStyle, Broadcasted, DefaultArrayStyle, materialize!, flatten, Style, broadcasted
 BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
-BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
 BroadcastStyle(::Style{FontExtent}, x) = Style{FontExtent}()
 BroadcastStyle(x, ::Style{FontExtent}) = Style{FontExtent}()
 
@@ -123,7 +122,7 @@ end
 
 function glyphbitmap(bmpRec::FreeType.FT_Bitmap)
     @assert bmpRec.pixel_mode == FreeType.FT_PIXEL_MODE_GRAY
-    bmp = Matrix{UInt8}(bmpRec.width, bmpRec.rows)
+    bmp = Matrix{UInt8}(undef, bmpRec.width, bmpRec.rows)
     row = bmpRec.buffer
     if bmpRec.pitch < 0
         row -= bmpRec.pitch * (rbmpRec.rows - 1)
@@ -137,7 +136,7 @@ function glyphbitmap(bmpRec::FreeType.FT_Bitmap)
     return bmp
 end
 
-one_or_typemax(::Type{T}) where {T<:Union{Real,Colorant}} = T<:Integer ? typemax(T) : one(T)
+one_or_typemax(::Type{T}) where {T<:Union{Real,Colorant}} = T<:Integer ? typemax(T) : oneunit(T)
 
 """
     renderstring!(img::AbstractMatrix, str::String, face, pixelsize, y0, x0;
@@ -157,8 +156,8 @@ function renderstring!(
         fcolor::T = one_or_typemax(T), bcolor::Union{T,Nothing} = zero(T),
         halign::Symbol = :hleft, valign::Symbol = :vbaseline
     ) where T<:Union{Real,Colorant}
-    bitmaps = Vector{Matrix{UInt8}}(endof(str))
-    metrics = Vector{FontExtent{Int}}(endof(str))
+    bitmaps = Vector{Matrix{UInt8}}(undef, lastindex(str))
+    metrics = Vector{FontExtent{Int}}(undef, lastindex(str))
     ymin = ymax = sumadvancex = 0
     for (istr, char) = enumerate(str)
         bitmap, metric_float = renderface(face, char, pixelsize)
@@ -181,8 +180,10 @@ function renderstring!(
 
     imgh, imgw = size(img)
     if bcolor != nothing
-      img[clamp(py-ymax+1, 1, imgh) : clamp(py-ymin-1, 1, imgh),
-          clamp(px-1, 1, imgw) : clamp(px+sumadvancex-1, 1, imgw)] = bcolor
+        img[
+            clamp(py-ymax+1, 1, imgh) : clamp(py-ymin-1, 1, imgh),
+            clamp(px-1, 1, imgw) : clamp(px+sumadvancex-1, 1, imgw)
+        ] .= bcolor
     end
 
     local prev_char::Char
