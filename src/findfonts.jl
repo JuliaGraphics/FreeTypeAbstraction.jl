@@ -57,7 +57,7 @@ function loaded_faces()
     return loaded_fonts
 end
 
-family_name(x::String) = replace(lowercase(x), ' ', "") # normalize
+family_name(x::String) = replace(lowercase(x), ' ' => "") # normalize
 
 function family_name(x)
     fname = x.family_name
@@ -78,7 +78,7 @@ function match_font(face, name, italic, bold)
     italic = italic == (sname == "italic")
     bold = bold == (sname == "bold")
     perfect_match = (fname == name) && italic && bold
-    fuzzy_match = contains(fname, name)
+    fuzzy_match = occursin(name, fname)
     return perfect_match, fuzzy_match
 end
 function findfont(name::String; italic = false, bold = false, additional_fonts::String = "")
