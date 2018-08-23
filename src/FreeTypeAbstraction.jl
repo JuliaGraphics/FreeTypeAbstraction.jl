@@ -1,5 +1,3 @@
-__precompile__()
-
 module FreeTypeAbstraction
 
 using FreeType, StaticArrays, Colors, ColorVectorSpace
