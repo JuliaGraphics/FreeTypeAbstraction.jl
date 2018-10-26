@@ -8,7 +8,7 @@ if Sys.isapple()
         ]
     end
 elseif Sys.iswindows()
-    _font_paths() = [joinpath(ENV["WINDIR"], "fonts")]
+    _font_paths() = [joinpath(ENV["SYSTEMROOT"], "fonts")]
 else
     function add_recursive(result, path)
         for p in readdir(path)
