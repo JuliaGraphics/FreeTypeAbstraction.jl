@@ -84,7 +84,7 @@ end
 function findfont(name::String; italic = false, bold = false, additional_fonts::String = "")
     font_folders = copy(fontpaths())
     normalized_name = family_name(name)
-    isempty(additional_fonts) || push!(font_folders, additional_fonts)
+    isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
     candidates = Ptr{FreeType.FT_FaceRec}[]
     for folder in font_folders
         for font in readdir(folder)
