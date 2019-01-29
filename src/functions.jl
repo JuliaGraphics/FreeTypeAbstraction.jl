@@ -54,6 +54,7 @@ function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer)
         div.(Vec{2, Int}(fontmetric.width, fontmetric.height), scale)
     )
 end
+
 const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
 function ft_init()
@@ -71,13 +72,31 @@ function ft_done()
     return err == 0
 end
 
-function newface(facename, faceindex::Real=0, ftlib=FREE_FONT_LIBRARY)
-    face = (FT_Face)[C_NULL]
+function newface(facename, faceindex::Real = 0, ftlib = FREE_FONT_LIBRARY)
+    face = FT_Face[C_NULL]
     err = FT_New_Face(ftlib[1], facename, Int32(faceindex), face)
     if err != 0
         error("Couldn't load font $facename with error $err")
     end
     face
+end
+
+mutable struct FTFont
+    ft_ptr::FreeType.FT_FaceRec
+    function FTFont(ft_ptr::FreeType.FT_FaceRec)
+        obj = new(ft_ptr)
+        finalizer(FT_Done_Face, obj)
+        return obj
+    end
+end
+
+function FTFont(path::String)
+    face = Ref{FT_Face}(C_NULL)
+    err = FT_New_Face(ftlib[1], path, Int32(faceindex), face)
+    if err != 0
+        error("Couldn't load font $facename with error $err")
+    end
+    return FTFont(face[])
 end
 
 setpixelsize(face, x, y) = setpixelsize(face, (x, y))
