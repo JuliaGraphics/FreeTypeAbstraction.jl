@@ -79,31 +79,46 @@ function match_font(face, name, italic, bold)
     bold = bold == (sname == "bold")
     perfect_match = (fname == name) && italic && bold
     fuzzy_match = occursin(name, fname)
-    return perfect_match, fuzzy_match
+    score = fuzzy_match + bold + italic
+    return perfect_match, fuzzy_match, score
 end
-function findfont(name::String; italic = false, bold = false, additional_fonts::String = "")
+
+function try_load(fpath)
+    try
+        newface(fpath)[]
+    catch e
+        return nothing
+    end
+end
+
+
+
+function findfont(
+        name::String;
+        italic = false, bold = false, additional_fonts::String = ""
+    )
     font_folders = copy(fontpaths())
     normalized_name = family_name(name)
     isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
-    candidates = Ptr{FreeType.FT_FaceRec}[]
+    candidates = Pair{Ptr{FreeType.FT_FaceRec}, Int}[]
     for folder in font_folders
         for font in readdir(folder)
             fpath = joinpath(folder, font)
-            face = try
-                newface(fpath)[]
-            catch e
-                continue
-            end
-            perfect_match, fuzzy_match = match_font(face, normalized_name, italic, bold)
+            face = try_load(fpath)
+            face === nothing && continue
+            perfect_match, fuzzy_match, score = match_font(
+                face, normalized_name, italic, bold
+            )
             perfect_match && return face
             if fuzzy_match
-                push!(candidates, face)
+                push!(candidates, face => score)
             else
                 FT_Done_Face(face)
             end
         end
     end
     if !isempty(candidates)
+        sort!(candidates, by = last)
         final_candidate = pop!(candidates)
         foreach(FT_Done_Face, candidates)
         return final_candidate
