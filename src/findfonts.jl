@@ -71,16 +71,17 @@ function style_name(x)
     lowercase(unsafe_string(sname))
 end
 
-function match_font(face, name, italic, bold)
+function match_parts(face, searchstring)
     ft_rect = unsafe_load(face)
     fname = family_name(ft_rect)
     sname = style_name(ft_rect)
-    italic = italic == (sname == "italic")
-    bold = bold == (sname == "bold")
-    perfect_match = (fname == name) && italic && bold
-    fuzzy_match = occursin(name, fname)
-    score = fuzzy_match + bold + italic
-    return perfect_match, fuzzy_match, score
+    full_name = "$fname $sname"
+    # \W splits at all non-word characters (like space, -, ., etc)
+    searchparts = unique(split(lowercase(searchstring), r"\W"))
+    # count letters of parts that occurred in the font name positively and those that didn't negatively
+    match_score = sum(map(part -> sign(occursin(part, full_name)) * length(part), searchparts))
+    # give shorter font names that matched equally well a higher score after the decimal point
+    final_score = match_score + (1 / length(full_name))
 end
 
 function try_load(fpath)
@@ -91,26 +92,17 @@ function try_load(fpath)
     end
 end
 
-
-
-function findfont(
-        name::String;
-        italic = false, bold = false, additional_fonts::String = ""
-    )
+function findfont(searchstring::String; additional_fonts::String = "")
     font_folders = copy(fontpaths())
-    normalized_name = family_name(name)
     isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
-    candidates = Pair{Ptr{FreeType.FT_FaceRec}, Int}[]
+    candidates = Pair{Ptr{FreeType.FT_FaceRec}, Float64}[]
     for folder in font_folders
         for font in readdir(folder)
             fpath = joinpath(folder, font)
             face = try_load(fpath)
             face === nothing && continue
-            perfect_match, fuzzy_match, score = match_font(
-                face, normalized_name, italic, bold
-            )
-            perfect_match && return face
-            if fuzzy_match
+            score = match_parts(face, searchstring)
+            if floor(score) > 0 # only take results with net positive character matches into account
                 push!(candidates, face => score)
             else
                 FT_Done_Face(face)
@@ -119,8 +111,8 @@ function findfont(
     end
     if !isempty(candidates)
         sort!(candidates, by = last)
-        final_candidate = pop!(candidates)
-        foreach(FT_Done_Face, candidates)
+        final_candidate = pop!(candidates)[1]
+        foreach(x -> FT_Done_Face(x[1]), candidates)
         return final_candidate
     end
     return nothing
