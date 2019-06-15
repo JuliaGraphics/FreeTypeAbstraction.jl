@@ -3,7 +3,7 @@ if Sys.isapple()
     function _font_paths()
         [
             "/Library/Fonts", # Additional fonts that can be used by all users. This is generally where fonts go if they are to be used by other applications.
-            "~/Library/Fonts", # Fonts specific to each user.
+            joinpath(homedir(), "Library/Fonts"), # Fonts specific to each user.
             "/Network/Library/Fonts", # Fonts shared for users on a network
         ]
     end
