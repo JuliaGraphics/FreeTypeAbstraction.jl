@@ -3,3 +3,4 @@ FreeType 2.0.0
 StaticArrays
 Colors
 ColorVectorSpace 0.6.0
+Fontconfig

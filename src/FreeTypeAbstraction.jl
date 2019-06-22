@@ -1,6 +1,9 @@
 module FreeTypeAbstraction
 
 using FreeType, StaticArrays, Colors, ColorVectorSpace
+import Fontconfig: format, match, Pattern,
+    string_attrs, double_attrs, integer_attrs, bool_attrs
+
 
 include("functions.jl")
 include("findfonts.jl")
