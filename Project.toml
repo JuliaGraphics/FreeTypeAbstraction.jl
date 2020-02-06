@@ -9,6 +9,7 @@ FreeType = "b38be410-82b0-50bf-ab77-7b57e271db43"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+julia = "1"
 ColorVectorSpace = "0.8"
 Colors = "0.11"
 FreeType = "2, 3"
