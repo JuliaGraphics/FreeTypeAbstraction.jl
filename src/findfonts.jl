@@ -1,3 +1,20 @@
+mutable struct FTFont
+    ft_ptr::FreeType.FT_FaceRec
+    function FTFont(ft_ptr::FreeType.FT_FaceRec)
+        obj = new(ft_ptr)
+        finalizer(FT_Done_Face, obj)
+        return obj
+    end
+end
+
+function FTFont(path::String)
+    face = Ref{FT_Face}(C_NULL)
+    err = FT_New_Face(ftlib[1], path, Int32(faceindex), face)
+    if err != 0
+        error("Couldn't load font $facename with error $err")
+    end
+    return FTFont(face[])
+end
 
 if Sys.isapple()
     function _font_paths()
@@ -32,6 +49,7 @@ end
 
 
 freetype_extensions() = (".FON", ".OTC", ".FNT", ".BDF", ".PFR", ".OTF", ".TTF", ".TTC", ".CFF", ".WOFF")
+
 function freetype_can_read(font::String)
     fontname, ext = splitext(font)
     uppercase(ext) in freetype_extensions()
@@ -91,8 +109,6 @@ function try_load(fpath)
     end
 end
 
-
-
 function findfont(
         name::String;
         italic = false, bold = false, additional_fonts::String = ""
@@ -120,7 +136,7 @@ function findfont(
     if !isempty(candidates)
         sort!(candidates, by = last)
         final_candidate = pop!(candidates)
-        foreach(FT_Done_Face, candidates)
+        foreach(x-> FT_Done_Face(x[1]), candidates)
         return final_candidate
     end
     return nothing

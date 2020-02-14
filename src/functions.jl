@@ -1,4 +1,3 @@
-const Vec = SVector
 struct FontExtent{T}
     vertical_bearing::Vec{2, T}
     horizontal_bearing::Vec{2, T}
@@ -23,6 +22,7 @@ function broadcasted(op::Function, f::FontExtent, scaling::StaticVector)
         op.(f.scale, scaling),
     )
 end
+
 function broadcasted(op::Function, ::Type{T}, f::FontExtent) where T
     FontExtent(
         map(x-> op(T, x), f.vertical_bearing),
@@ -40,12 +40,14 @@ function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::T = 64.0) wher
         Vec{2, T}(fontmetric.width, fontmetric.height) ./ scale
     )
 end
+
 function ==(x::FontExtent, y::FontExtent)
     x.vertical_bearing == y.vertical_bearing &&
     x.horizontal_bearing == y.horizontal_bearing &&
     x.advance == y.advance &&
     x.scale == y.scale
 end
+
 function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer)
     FontExtent(
         div.(Vec{2, Int}(fontmetric.vertBearingX, fontmetric.vertBearingY), scale),
@@ -81,24 +83,6 @@ function newface(facename, faceindex::Real = 0, ftlib = FREE_FONT_LIBRARY)
     face
 end
 
-mutable struct FTFont
-    ft_ptr::FreeType.FT_FaceRec
-    function FTFont(ft_ptr::FreeType.FT_FaceRec)
-        obj = new(ft_ptr)
-        finalizer(FT_Done_Face, obj)
-        return obj
-    end
-end
-
-function FTFont(path::String)
-    face = Ref{FT_Face}(C_NULL)
-    err = FT_New_Face(ftlib[1], path, Int32(faceindex), face)
-    if err != 0
-        error("Couldn't load font $facename with error $err")
-    end
-    return FTFont(face[])
-end
-
 setpixelsize(face, x, y) = setpixelsize(face, (x, y))
 
 function setpixelsize(face, size)
@@ -126,7 +110,7 @@ function renderface(face, c::Char, pixelsize = (32,32))
     setpixelsize(face, pixelsize)
     faceRec = unsafe_load(face[1])
     loadchar(face, c)
-    glyphRec    = unsafe_load(faceRec.glyph)
+    glyphRec = unsafe_load(faceRec.glyph)
     @assert glyphRec.format == FreeType.FT_GLYPH_FORMAT_BITMAP
     return glyphbitmap(glyphRec.bitmap), FontExtent(glyphRec.metrics)
 end
