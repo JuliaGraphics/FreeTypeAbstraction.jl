@@ -1,16 +1,8 @@
 using FreeTypeAbstraction, Colors, ColorVectorSpace
 using Test
-using FreeTypeAbstraction: Vec, glyph_rects, glyph_offsets_scale_boundingbox
-using Colors
-
-face = newface(joinpath(@__DIR__, "hack_regular.ttf"))
-text = "genloI.^"
-bbs = glyph_rects(text, face, 1.0)
-
-glyphs = map(x-> collect(transpose(RGBf0.(Gray.(1 .- (x ./ 255))))), first.(renderface.((face,), collect(text))))
-scatter(minimimum.(bbs), markersize=scale, marker_offset=Vec2f0(0), marker=glyphs, scale_plot=false) |> display
-lines!(bb);
-
+using FreeTypeAbstraction: Vec, glyph_rects, get_extent
+using FreeType
+using BenchmarkTools
 
 f = unsafe_load(face[])
 

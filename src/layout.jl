@@ -1,18 +1,22 @@
-
 iter_or_array(x) = repeated(x)
 iter_or_array(x::Repeated) = x
 iter_or_array(x::Array) = x
-iter_or_array(x::Vector{Ptr{FreeType.FT_FaceRec}}) = repeated(x)
 
+function get_extent(face::FTFont, char::Char)
+    if use_cache(face)
+        get!(get_cache(face), char) do
+            return internal_get_extent(face, char)
+        end
+    else
+        return internal_get_extent(face, char)
+    end
+end
 
-# TODO, this function takes way too long... Will need caching or so
-function get_extent(face::Vector{Ptr{FreeType.FT_FaceRec}}, char::Char)
-    face_rec = unsafe_load(face[1])
-    err = FT_Load_Char(face[1], char, FT_LOAD_DEFAULT)
-    @assert err == 0
-    glyph_rec = unsafe_load(face_rec.glyph);
-    metrics = glyph_rec.metrics
-    return FontExtent(metrics, 64.0)
+function internal_get_extent(face::FTFont, char::Char)
+    err = FT_Load_Char(face, char, FT_LOAD_DEFAULT)
+    check_error(err, "Could not load char to get extend.")
+    metrics = face.glyph.metrics
+    return FontExtent(metrics, 64f0)
 end
 
 function bearing(extent)

@@ -1,11 +1,17 @@
 mutable struct FTFont
     ft_ptr::FreeType.FT_FaceRec
-    function FTFont(ft_ptr::FreeType.FT_FaceRec)
-        obj = new(ft_ptr)
-        finalizer(FT_Done_Face, obj)
-        return obj
+    pixel_size::Int
+    use_cache::Bool
+    cache::Dict{Char, FontExtent{Float32}}
+    function FTFont(ft_ptr::FreeType.FT_FaceRec, pixel_size::Int=64, use_cache::Bool=true)
+        cache = Dict{Char, FontExtent{Float32}}()
+        face = new(ft_ptr, pixel_size, use_cache, cache)
+        finalizer(FT_Done_Face, face)
+        FT_Set_Pixel_Sizes(face, pixel_size, 0);
+        return face
     end
 end
+
 
 function FTFont(path::String)
     face = Ref{FT_Face}(C_NULL)
@@ -15,6 +21,51 @@ function FTFont(path::String)
     end
     return FTFont(face[])
 end
+
+function FTFont(font_ptr::Ptr{FreeType.FT_FaceRec})
+    face_rect = unsafe_load(font_ptr)
+    return FTFont(face_rect)
+end
+
+# C interop
+function Base.cconvert(::Type{FreeType.FT_Face}, font::FTFont)
+    return font
+end
+
+function Base.unsafe_convert(::Type{FreeType.FT_Face}, font::FTFont)
+    ptr = Base.pointer_from_objref(font)
+    return convert(FreeType.FT_Face, ptr)
+end
+
+function Base.propertynames(font::FTFont)
+    return fieldnames(FreeType.FT_FaceRec)
+end
+
+function Base.getproperty(font::FTFont, fieldname::Symbol)
+    fontrect = getfield(font, :ft_ptr)
+    field = getfield(fontrect, fieldname)
+    if field isa Ptr{FT_String}
+        return unsafe_string(field)
+    # Some fields segfault with unsafe_load...Lets find out which another day :D
+    elseif field isa Ptr{FreeType.LibFreeType.FT_GlyphSlotRec}
+        return unsafe_load(field)
+    else
+        return field
+    end
+end
+
+get_pixelsizes(face::FTFont) = (get_pixelsize(face), get_pixelsize(face))
+get_pixelsize(face::FTFont) = getfield(face, :pixel_size)
+reset_pixelsize(face::FTFont) = FT_Set_Pixel_Sizes(face, get_pixelsize(face), 0)
+
+function check_error(err, error_msg)
+    if err != 0
+        error(error_msg * " with error: $(err)")
+    end
+end
+
+use_cache(face::FTFont) = getfield(face, :use_cache)
+get_cache(face::FTFont) = getfield(face, :cache)
 
 if Sys.isapple()
     function _font_paths()
@@ -137,7 +188,7 @@ function findfont(
         sort!(candidates, by = last)
         final_candidate = pop!(candidates)
         foreach(x-> FT_Done_Face(x[1]), candidates)
-        return final_candidate
+        return FTFont(final_candidate[1])
     end
     return nothing
 end

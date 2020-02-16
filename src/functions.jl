@@ -85,10 +85,10 @@ end
 
 setpixelsize(face, x, y) = setpixelsize(face, (x, y))
 
-function setpixelsize(face, size)
-    err = FT_Set_Pixel_Sizes(face[1], UInt32(size[1]), UInt32(size[2]))
+function setpixelsize(face::FTFont, size::NTuple{2, <:Integer})
+    err = FT_Set_Pixel_Sizes(face, UInt32(size[1]), UInt32(size[2]))
     if err != 0
-    error("Couldn't set the pixel size for font with error $err")
+        error("Couldn't set the pixel size for font with error $err")
     end
 end
 
@@ -101,18 +101,20 @@ function kerning(c1::Char, c2::Char, face::Array{Ptr{FreeType.FT_FaceRec},1}, di
     return Vec{2, Float32}(kernVec[1].x / divisor, kernVec[1].y / divisor)
 end
 
-function loadchar(face, c::Char)
-    err = FT_Load_Char(face[1], c, FT_LOAD_RENDER)
-    @assert err == 0
+function loadchar(face::FTFont, c::Char)
+    err = FT_Load_Char(face, c, FT_LOAD_RENDER)
+    check_error(err, "Could not load char to render.")
 end
 
-function renderface(face, c::Char, pixelsize = (32,32))
+function renderface(face::FTFont, c::Char, pixelsize=get_pixelsizes(face))
     setpixelsize(face, pixelsize)
-    faceRec = unsafe_load(face[1])
     loadchar(face, c)
-    glyphRec = unsafe_load(faceRec.glyph)
-    @assert glyphRec.format == FreeType.FT_GLYPH_FORMAT_BITMAP
-    return glyphbitmap(glyphRec.bitmap), FontExtent(glyphRec.metrics)
+    glyph = face.glyph
+    @assert glyph.format == FreeType.FT_GLYPH_FORMAT_BITMAP
+    # Our assumption is that we have one pixel size, so whenever we change it
+    # we need to put it back!
+    reset_pixelsize(face)
+    return glyphbitmap(glyph.bitmap)
 end
 
 function getextent(face, c::Char, pixelsize)
