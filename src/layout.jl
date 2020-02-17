@@ -1,28 +1,11 @@
+const Rect2D = HyperRectangle{2, Float32}
+
 iter_or_array(x) = repeated(x)
 iter_or_array(x::Repeated) = x
-iter_or_array(x::Array) = x
+iter_or_array(x::AbstractArray) = x
+# We treat staticarrays as scalar
+iter_or_array(x::StaticArray) = repeated(x)
 
-function get_extent(face::FTFont, char::Char)
-    if use_cache(face)
-        get!(get_cache(face), char) do
-            return internal_get_extent(face, char)
-        end
-    else
-        return internal_get_extent(face, char)
-    end
-end
-
-function internal_get_extent(face::FTFont, char::Char)
-    err = FT_Load_Char(face, char, FT_LOAD_DEFAULT)
-    check_error(err, "Could not load char to get extend.")
-    metrics = face.glyph.metrics
-    return FontExtent(metrics, 64f0)
-end
-
-function bearing(extent)
-    return Vec2f0(extent.horizontal_bearing[1],
-                  -(extent.scale[2] - extent.horizontal_bearing[2]))
-end
 
 """
     iterate_extents(f, line::AbstractString, fonts, scales)
@@ -54,7 +37,6 @@ function iterate_extents(f, line::AbstractString, fonts, scales)
     end
 end
 
-const Rect2D = HyperRectangle{2, Float32}
 
 function glyph_rects(line::AbstractString, fonts, scales)
     rects = Rect2D[]
