@@ -28,7 +28,7 @@ function iterate_extents(f, line::AbstractString, fonts, scales)
     iterator = zip(line, iter_or_array(scales), iter_or_array(fonts))
     lastpos = 0.0
     for (char, scale, font) in iterator
-        extent = get_extent(font, char)
+        extent = get_extent(font, char) .* Vec2f0(scale)
         mini = bearing(extent) .+ Vec2f0(lastpos, 0.0)
         glyph_box = Rect2D(mini, Vec2f0(extent.scale))
         glyph_advance = Point2f0(extent.advance)

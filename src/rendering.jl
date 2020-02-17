@@ -1,4 +1,28 @@
 
+function renderface(face::FTFont, c::Char,
+                    pixelsize::Integer=get_pixelsize(face))
+    set_pixelsize(face, pixelsize)
+    loadchar(face, c)
+    glyph = face.glyph
+    @assert glyph.format == FreeType.FT_GLYPH_FORMAT_BITMAP
+    return glyphbitmap(glyph.bitmap), get_extent(face, c)
+end
+
+function glyphbitmap(bitmap::FreeType.FT_Bitmap)
+    @assert bitmap.pixel_mode == FreeType.FT_PIXEL_MODE_GRAY
+    bmp = Matrix{UInt8}(undef, bitmap.width, bitmap.rows)
+    row = bitmap.buffer
+    if bitmap.pitch < 0
+        row -= bitmap.pitch * (rbmpRec.rows - 1)
+    end
+    for r in 1:bitmap.rows
+        src = unsafe_wrap(Array, row, bitmap.width)
+        bmp[:, r] = src
+        row += bitmap.pitch
+    end
+    return bmp
+end
+
 one_or_typemax(::Type{T}) where {T<:Union{Real,Colorant}} = T<:Integer ? typemax(T) : oneunit(T)
 
 """
@@ -15,18 +39,24 @@ Render `str` into `img` using the font `face` of size `pixelsize` at coordinates
 * `valign`: :vtop, :vcenter, :vbaseline, or :vbottom
 """
 function renderstring!(
-        img::AbstractMatrix{T}, str::String, face::FTFont, pixelsize, y0, x0;
+        img::AbstractMatrix{T}, str::String, face::FTFont, pixelsize::Union{Int, Tuple{Int, Int}}, y0, x0;
         fcolor::T = one_or_typemax(T), bcolor::Union{T,Nothing} = zero(T),
         halign::Symbol = :hleft, valign::Symbol = :vbaseline
     ) where T<:Union{Real,Colorant}
-    setpixelsize(face, pixelsize)
+
+    if pixelsize isa Tuple
+        @warn "using tuple for pixelsize is deprecated, please use one integer"
+        set_pixelsize(face, pixelsize[1])
+    else
+        set_pixelsize(face, pixelsize)
+    end
+
     bitmaps = Vector{Matrix{UInt8}}(undef, lastindex(str))
     metrics = Vector{FontExtent{Int}}(undef, lastindex(str))
     ymin = ymax = sumadvancex = 0
 
     for (istr, char) = enumerate(str)
-        bitmap = renderface(face, char)
-        metric_float = get_extent(face, char)
+        bitmap, metric_float = renderface(face, char)
         metric = round.(Int, metric_float)
         bitmaps[istr] = bitmap
         metrics[istr] = metric
@@ -60,7 +90,7 @@ function renderstring!(
         if istr == 1
             prev_char = char
         else
-            kx, ky = map(x-> round(Int, x), kerning(prev_char, char, face, 64.0f0))
+            kx, ky = map(x-> round(Int, x), kerning(prev_char, char, face))
             px += kx
         end
         cliprowlo, cliprowhi = max(0, by-py), max(0, h+py-by-imgh)

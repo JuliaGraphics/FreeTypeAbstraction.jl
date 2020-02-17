@@ -1,15 +1,19 @@
-using FreeTypeAbstraction, Colors, ColorVectorSpace
+using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryTypes
 using Test
 using FreeTypeAbstraction: Vec, glyph_rects, get_extent, FTFont, kerning
 using FreeType
 
-face = findfont("hack"; additional_fonts=@__DIR__)
+face = FreeTypeAbstraction.findfont("hack"; additional_fonts=@__DIR__)
 
-img = renderface(face, 'C')
+FA = FreeTypeAbstraction
+
+FA.set_pixelsize(face, 64) # should be the default
+img, extent = renderface(face, 'C')
 @test size(img) == (30, 49)
 @test typeof(img) == Array{UInt8,2}
-extent = get_extent(face, 'C')
 @test extent == FontExtent{Float32}(Float32[-15.0, 6.0], Float32[4.0, 48.0], Float32[39.0, 62.0], Float32[30.0, 49.0])
+img, extent = renderface(face, 'C', 200)
+@test round.(Int, widths(FA.boundingbox(extent))) == Vec(size(img))
 
 a = renderstring!(zeros(UInt8, 20, 100), "helgo", face, (10, 10), 10, 10)
 

@@ -48,6 +48,15 @@ function broadcasted(op::Function, f::FontExtent, scaling::StaticVector)
     )
 end
 
+function broadcasted(op::Function, f::FontExtent)
+    return FontExtent(
+        op.(f.vertical_bearing),
+        op.(f.horizontal_bearing),
+        op.(f.advance),
+        op.(f.scale),
+    )
+end
+
 function broadcasted(op::Function, ::Type{T}, f::FontExtent) where T
     return FontExtent(
         map(x-> op(T, x), f.vertical_bearing),
@@ -82,6 +91,11 @@ function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer)
     )
 end
 
+function bearing(extent::FontExtent)
+    return Vec2f0(extent.horizontal_bearing[1],
+                  -(extent.scale[2] - extent.horizontal_bearing[2]))
+end
+
 function safe_free(face)
     ptr = getfield(face, :ft_ptr)
     if ptr != C_NULL && FREE_FONT_LIBRARY[1] != C_NULL
@@ -89,14 +103,19 @@ function safe_free(face)
     end
 end
 
+function boundingbox(extent::FontExtent)
+    mini = bearing(extent)
+    return Rect2D(mini, Vec2f0(extent.scale))
+end
+
 mutable struct FTFont
     ft_ptr::FreeType.FT_Face
-    pixel_size::Int
+    current_pixelsize::Base.RefValue{Int}
     use_cache::Bool
-    cache::Dict{Char, FontExtent{Float32}}
+    cache::Dict{Tuple{Int, Char}, FontExtent{Float32}}
     function FTFont(ft_ptr::FreeType.FT_Face, pixel_size::Int=64, use_cache::Bool=true)
-        cache = Dict{Char, FontExtent{Float32}}()
-        face = new(ft_ptr, pixel_size, use_cache, cache)
+        cache = Dict{Tuple{Int, Char}, FontExtent{Float32}}()
+        face = new(ft_ptr, Ref(pixel_size), use_cache, cache)
         finalizer(safe_free, face)
         FT_Set_Pixel_Sizes(face, pixel_size, 0);
         return face
@@ -137,23 +156,25 @@ function Base.getproperty(font::FTFont, fieldname::Symbol)
     end
 end
 
-get_pixelsizes(face::FTFont) = (get_pixelsize(face), get_pixelsize(face))
-get_pixelsize(face::FTFont) = getfield(face, :pixel_size)
-reset_pixelsize(face::FTFont) = FT_Set_Pixel_Sizes(face, get_pixelsize(face), 0)
-setpixelsize(face::FTFont, x, y) = setpixelsize(face, (x, y))
+get_pixelsize(face::FTFont) = getfield(face, :current_pixelsize)[]
 
-function setpixelsize(face::FTFont, size::NTuple{2, <:Integer})
-    err = FT_Set_Pixel_Sizes(face, UInt32(size[1]), UInt32(size[2]))
+function set_pixelsize(face::FTFont, size::Integer)
+    get_pixelsize(face) == size && return size
+    err = FT_Set_Pixel_Sizes(face, size, size)
     check_error(err, "Couldn't set pixelsize")
+    getfield(face, :current_pixelsize)[] = size
+    return size
 end
 
-function kerning(c1::Char, c2::Char, face::FTFont, divisor::Float32)
+function kerning(c1::Char, c2::Char, face::FTFont)
     i1 = FT_Get_Char_Index(face, c1)
     i2 = FT_Get_Char_Index(face, c2)
     kerning2d = Ref{FreeType.FT_Vector}()
     err = FT_Get_Kerning(face, i1, i2, FreeType.FT_KERNING_DEFAULT, kerning2d)
     # Can error if font has no kerning! Since that's somewhat expected, we just return 0
     err != 0 && return Vec2f0(0)
+    # 64 since metrics are in 1/64 units (units to 26.6 fractional pixels)
+    divisor = 64
     return Vec2f0(kerning2d[].x / divisor, kerning2d[].y / divisor)
 end
 
@@ -162,31 +183,9 @@ function loadchar(face::FTFont, c::Char)
     check_error(err, "Could not load char to render.")
 end
 
-function renderface(face::FTFont, c::Char)
-    loadchar(face, c)
-    glyph = face.glyph
-    @assert glyph.format == FreeType.FT_GLYPH_FORMAT_BITMAP
-    return glyphbitmap(glyph.bitmap)
-end
-
-function glyphbitmap(bitmap::FreeType.FT_Bitmap)
-    @assert bitmap.pixel_mode == FreeType.FT_PIXEL_MODE_GRAY
-    bmp = Matrix{UInt8}(undef, bitmap.width, bitmap.rows)
-    row = bitmap.buffer
-    if bitmap.pitch < 0
-        row -= bitmap.pitch * (rbmpRec.rows - 1)
-    end
-    for r in 1:bitmap.rows
-        src = unsafe_wrap(Array, row, bitmap.width)
-        bmp[:, r] = src
-        row += bitmap.pitch
-    end
-    return bmp
-end
-
 function get_extent(face::FTFont, char::Char)
     if use_cache(face)
-        get!(get_cache(face), char) do
+        get!(get_cache(face), (get_pixelsize(face), char)) do
             return internal_get_extent(face, char)
         end
     else
@@ -198,10 +197,6 @@ function internal_get_extent(face::FTFont, char::Char)
     err = FT_Load_Char(face, char, FT_LOAD_DEFAULT)
     check_error(err, "Could not load char to get extend.")
     metrics = face.glyph.metrics
-    return FontExtent(metrics, Float32(get_pixelsize(face)))
-end
-
-function bearing(extent)
-    return Vec2f0(extent.horizontal_bearing[1],
-                  -(extent.scale[2] - extent.horizontal_bearing[2]))
+    # 64 since metrics are in 1/64 units (units to 26.6 fractional pixels)
+    return FontExtent(metrics, Float32(64))
 end
