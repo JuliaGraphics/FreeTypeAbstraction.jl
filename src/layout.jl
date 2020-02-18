@@ -7,6 +7,12 @@ iter_or_array(x::AbstractArray) = x
 iter_or_array(x::StaticArray) = repeated(x)
 
 
+function metrics_bb(char::Char, font::FTFont, scale)
+    extent = get_extent(font, char) .* Vec2f0(scale)
+    mini = bearing(extent)
+    return Rect2D(mini, Vec2f0(extent.scale)), extent
+end
+
 """
     iterate_extents(f, line::AbstractString, fonts, scales)
 Iterates over the extends of the characters (glyphs) in line!
@@ -28,9 +34,9 @@ function iterate_extents(f, line::AbstractString, fonts, scales)
     iterator = zip(line, iter_or_array(scales), iter_or_array(fonts))
     lastpos = 0.0
     for (char, scale, font) in iterator
-        extent = get_extent(font, char) .* Vec2f0(scale)
-        mini = bearing(extent) .+ Vec2f0(lastpos, 0.0)
-        glyph_box = Rect2D(mini, Vec2f0(extent.scale))
+        extent, glyph_box = metrics_bb(char, font, scale)
+        mini = minimimum(glyph_box) .+ Vec2f0(lastpos, 0.0)
+        glyph_box = Rect2D(mini, widths(glyph_box))
         glyph_advance = Point2f0(extent.advance)
         lastpos += glyph_advance[1]
         f(char, glyph_box, glyph_advance)
