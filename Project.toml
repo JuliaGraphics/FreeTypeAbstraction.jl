@@ -1,6 +1,6 @@
 name = "FreeTypeAbstraction"
 uuid = "663a7486-cb36-511b-a19d-713bb74d65c9"
-version = "0.5.0"
+version = "0.6.0"
 
 [deps]
 ColorVectorSpace = "c3611d14-8923-5661-9e6a-0046d554d3a4"
