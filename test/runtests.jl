@@ -15,13 +15,13 @@ img, extent = renderface(face, 'C')
 img, extent = renderface(face, 'C', 200)
 @test round.(Int, widths(FA.boundingbox(extent))) == Vec(size(img))
 
-a = renderstring!(zeros(UInt8, 20, 100), "helgo", face, (10, 10), 10, 10)
+a = renderstring!(zeros(UInt8, 20, 100), "helgo", face, 10, 10, 10)
 
 @test any(a[3:12, :] .!= 0)
 @test all(a[vcat(1:2, 13:20), :] .== 0)
 @test any(a[:, 11:40] .!= 0)
 @test all(a[:, vcat(1:10, 41:100)] .== 0)
-a = renderstring!(zeros(UInt8, 20, 100), "helgo", face, (10, 10), 15, 70)
+a = renderstring!(zeros(UInt8, 20, 100), "helgo", face, 10, 15, 70)
 @test any(a[8:17, :] .!= 0)
 @test all(a[vcat(1:7, 18:20), :] .== 0)
 @test any(a[:, 71:100] .!= 0)
@@ -31,7 +31,7 @@ a = renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     valign = :vtop,
@@ -42,7 +42,7 @@ a = renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     valign = :vcenter,
@@ -53,7 +53,7 @@ a = renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     valign = :vbaseline,
@@ -64,7 +64,7 @@ a = renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     valign = :vbottom,
@@ -75,7 +75,7 @@ a = renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     halign = :hleft,
@@ -86,7 +86,7 @@ a = renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     halign = :hcenter,
@@ -97,7 +97,7 @@ a = renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     halign = :hright,
@@ -109,7 +109,7 @@ a = renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     fcolor = 0x80,
@@ -119,7 +119,7 @@ a = renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     fcolor = 0x80,
@@ -130,24 +130,24 @@ a = renderstring!(
     fill(0x01, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     bcolor = nothing,
 )
 @test !any(a .== 0x00)
 
-a = renderstring!(zeros(Float32, 20, 100), "helgo", face, (10, 10), 10, 50)
+a = renderstring!(zeros(Float32, 20, 100), "helgo", face, 10, 10, 50)
 @test maximum(a) <= 1.0
-a = renderstring!(zeros(Float64, 20, 100), "helgo", face, (10, 10), 10, 50)
+a = renderstring!(zeros(Float64, 20, 100), "helgo", face, 10, 10, 50)
 @test maximum(a) <= 1.0
 
-renderstring!(zeros(Gray, 20, 100), "helgo", face, (10, 10), 10, 50)
+renderstring!(zeros(Gray, 20, 100), "helgo", face, 10, 10, 50)
 renderstring!(
     zeros(Gray{Float64}, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     10,
     50,
     fcolor = Gray(0.5),
@@ -157,13 +157,13 @@ renderstring!(
     zeros(UInt8, 20, 100),
     "helgo",
     face,
-    (10, 10),
+    10,
     0,
     0,
     halign = :hcenter,
     valign = :vcenter,
 )
-renderstring!(zeros(UInt8, 20, 100), "helgo", face, (10, 10), 25, 80)
+renderstring!(zeros(UInt8, 20, 100), "helgo", face, 10, 25, 80)
 
 # Find fonts
 # these fonts should be available on all platforms:

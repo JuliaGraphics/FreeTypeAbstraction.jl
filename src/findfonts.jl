@@ -77,12 +77,15 @@ function findfont(
             perfect_match && return face
             if fuzzy_match
                 push!(candidates, face => score)
+            else
+                finalize(face) # help gc a bit!
             end
         end
     end
     if !isempty(candidates)
         sort!(candidates; by=last)
         final_candidate = pop!(candidates)
+        foreach(x-> finalize(x[1]), candidates)
         return final_candidate[1]
     end
     return nothing
