@@ -1,4 +1,3 @@
-
 if Sys.isapple()
     function _font_paths()
         [
@@ -30,51 +29,19 @@ else
     end
 end
 
-
-freetype_extensions() = (".FON", ".OTC", ".FNT", ".BDF", ".PFR", ".OTF", ".TTF", ".TTC", ".CFF", ".WOFF")
-function freetype_can_read(font::String)
-    fontname, ext = splitext(font)
-    uppercase(ext) in freetype_extensions()
-end
-
-function loaded_faces()
-    if isempty(loaded_fonts)
-        for path in fontpaths()
-            for font in readdir(path)
-                # There doesn't really seem to be a reliable pattern here.
-                # there are fonts that should be supported and dont load
-                # and fonts with an extension not on the FreeType website, which
-                # load just fine. So we just try catch it!
-                #freetype_can_read(font) || continue
-                fpath = joinpath(path, font)
-                try
-                    push!(loaded_fonts, newface(fpath)[1])
-                catch
-                end
-            end
-        end
-    end
-    return loaded_fonts
-end
-
 family_name(x::String) = replace(lowercase(x), ' ' => "") # normalize
 
-function family_name(x)
-    fname = x.family_name
-    fname == C_NULL && return ""
-    family_name(unsafe_string(fname))
+function family_name(x::FTFont)
+    family_name(x.family_name)
 end
 
-function style_name(x)
-    sname = x.style_name
-    sname == C_NULL && return ""
-    lowercase(unsafe_string(sname))
+function style_name(x::FTFont)
+    lowercase(x.style_name)
 end
 
-function match_font(face, name, italic, bold)
-    ft_rect = unsafe_load(face)
-    fname = family_name(ft_rect)
-    sname = style_name(ft_rect)
+function match_font(face::FTFont, name, italic, bold)
+    fname = family_name(face)
+    sname = style_name(face)
     italic = italic == (sname == "italic")
     bold = bold == (sname == "bold")
     perfect_match = (fname == name) && italic && bold
@@ -85,22 +52,20 @@ end
 
 function try_load(fpath)
     try
-        newface(fpath)[]
+        return FTFont(fpath)
     catch e
         return nothing
     end
 end
 
-
-
 function findfont(
         name::String;
-        italic = false, bold = false, additional_fonts::String = ""
+        italic::Bool=false, bold::Bool=false, additional_fonts::String=""
     )
     font_folders = copy(fontpaths())
     normalized_name = family_name(name)
     isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
-    candidates = Pair{Ptr{FreeType.FT_FaceRec}, Int}[]
+    candidates = Pair{FTFont, Int}[]
     for folder in font_folders
         for font in readdir(folder)
             fpath = joinpath(folder, font)
@@ -113,15 +78,15 @@ function findfont(
             if fuzzy_match
                 push!(candidates, face => score)
             else
-                FT_Done_Face(face)
+                finalize(face) # help gc a bit!
             end
         end
     end
     if !isempty(candidates)
-        sort!(candidates, by = last)
+        sort!(candidates; by=last)
         final_candidate = pop!(candidates)
-        foreach(FT_Done_Face, candidates)
-        return final_candidate
+        foreach(x-> finalize(x[1]), candidates)
+        return final_candidate[1]
     end
     return nothing
 end

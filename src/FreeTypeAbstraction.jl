@@ -1,9 +1,14 @@
 module FreeTypeAbstraction
 
-using FreeType, StaticArrays, Colors, ColorVectorSpace
+using FreeType, StaticArrays, Colors, ColorVectorSpace, GeometryTypes
+using Base.Iterators: Repeated, repeated
+import Base: /, *, ==
+import Base.Broadcast: BroadcastStyle, Style, broadcasted
 
-include("functions.jl")
+include("types.jl")
 include("findfonts.jl")
+include("layout.jl")
+include("rendering.jl")
 
 export newface
 export renderface
