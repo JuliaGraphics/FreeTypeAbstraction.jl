@@ -44,6 +44,29 @@ Match a font using the user-specified search string, by increasing the score
 for each part that appears in the font family + style name, and decreasing it
 for each part that doesn't. The function also prefers shorter font names when
 encountering similar scores.
+
+
+Example:
+
+If we had only four fonts:
+- Helvetica
+- Helvetica Neue
+- Helvetica Neue Light
+- Times New Roman
+
+Then this is how this function would match different search strings:
+- "helvetica"           => Helvetica
+- "helv"                => Helvetica
+- "HeLvEtIcA"           => Helvetica
+- "helvetica neue"      => Helvetica Neue
+- "tica eue"            => Helvetica Neue
+- "helvetica light"     => Helvetica Neue Light
+- "light"               => Helvetica Neue Light
+- "helvetica bold"      => Helvetica
+- "helvetica neue bold" => Helvetica Neue
+- "times"               => Times New Roman
+- "times new roman"     => Times New Roman
+- "arial"               => no match
 """
 function match_font(face::FTFont, searchstring)
     fname = family_name(face)
