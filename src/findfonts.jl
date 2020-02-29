@@ -68,12 +68,16 @@ Then this is how this function would match different search strings:
 - "times new roman"     => Times New Roman
 - "arial"               => no match
 """
-function match_font(face::FTFont, searchstring)
+function match_font(face::FTFont, searchparts)
     fname = family_name(face)
     sname = style_name(face)
-    full_name = "$fname $sname"
-    # \W splits at all groups of non-word characters (like space, -, ., etc)
-    searchparts = unique(split(lowercase(searchstring), r"\W+", keepempty=false))
+    # Regular should get selected / full match if we dont specificy any styling!
+    full_name = if sname == "regular"
+        "$fname"
+    else
+        "$fname $sname"
+    end
+    full_name == "" && return 0
     # count letters of parts that occurred in the font name positively and those that didn't negatively.
     # we assume that the user knows at least parts of the name and doesn't misspell them
     # but they might not know the exact name, especially for long font names, or they
@@ -82,7 +86,7 @@ function match_font(face::FTFont, searchstring)
     # doesn't match against it, therefore rejecting fonts that mismatch more parts
     # than they match. this heuristic should be good enough to provide a hassle-free
     # font selection experience where most spellings that are expected to work, work.
-    match_score = sum(map(part -> sign(occursin(part, full_name)) * length(part), searchparts))
+    match_score = sum(map(part -> (2 * occursin(part, full_name) - 1) * length(part), searchparts))
     # give shorter font names that matched equally well a higher score after the decimal point.
     # this should usually pick the "standard" variant of a font as long as it
     # doesn't have a special identifier like "regular", "roman", "book", etc.
@@ -105,7 +109,7 @@ function try_load(fpath)
 end
 
 function findfont(
-        name::String;
+        searchstring::String;
         italic::Bool=false, # this is unused in the new implementation
         bold::Bool=false, # and this as well
         additional_fonts::String=""
@@ -113,20 +117,21 @@ function findfont(
     font_folders = copy(fontpaths())
     # normalized_name = family_name(name)
     isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
-
+    # \W splits at all groups of non-word characters (like space, -, ., etc)
+    searchparts = unique(split(lowercase(searchstring), r"\W+", keepempty=false))
     candidates = Pair{FTFont, Float64}[]
     for folder in font_folders
         for font in readdir(folder)
             fpath = joinpath(folder, font)
             face = try_load(fpath)
             face === nothing && continue
-            score = match_font(face, name)
-
+            score = match_font(face, searchparts)
             # only take results with net positive character matches into account
             if floor(score) > 0
                 push!(candidates, face => score)
             else
-                finalize(face) # help gc a bit!
+                # help gc a bit! Otherwise, this won't end well with the font keeping tons of open files
+                finalize(face)
             end
         end
     end
