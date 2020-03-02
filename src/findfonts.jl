@@ -29,75 +29,75 @@ else
     end
 end
 
-family_name(x::String) = replace(lowercase(x), ' ' => "") # normalize
-
 function family_name(x::FTFont)
-    family_name(x.family_name)
+    lowercase(x.family_name)
 end
 
 function style_name(x::FTFont)
     lowercase(x.style_name)
 end
 
+
 """
-Match a font using the user-specified search string, by increasing the score
-for each part that appears in the font family + style name, and decreasing it
-for each part that doesn't. The function also prefers shorter font names when
-encountering similar scores.
+Match a font using the user-specified search string. Each part of the search string
+is searched in the family name first which has to match once to include the font
+in the candidate list. For fonts with a family match the style
+name is matched next. For fonts with the same family and style name scores, regular
+fonts are preferred (any font that is "regular", "normal", "medium", "standard" or "roman")
+and as a last tie-breaker, shorter overall font names are preferred.
 
 
 Example:
 
 If we had only four fonts:
-- Helvetica
-- Helvetica Neue
+- Helvetica Italic
+- Helvetica Regular
+- Helvetica Neue Regular
 - Helvetica Neue Light
-- Times New Roman
 
 Then this is how this function would match different search strings:
-- "helvetica"           => Helvetica
-- "helv"                => Helvetica
-- "HeLvEtIcA"           => Helvetica
-- "helvetica neue"      => Helvetica Neue
-- "tica eue"            => Helvetica Neue
+- "helvetica"           => Helvetica Regular
+- "helv"                => Helvetica Regular
+- "HeLvEtIcA"           => Helvetica Regular
+- "helvetica italic"    => Helvetica Italic
+- "helve ita"           => Helvetica Italic
+- "helvetica neue"      => Helvetica Neue Regular
+- "tica eue"            => Helvetica Neue Regular
 - "helvetica light"     => Helvetica Neue Light
 - "light"               => Helvetica Neue Light
-- "helvetica bold"      => Helvetica
-- "helvetica neue bold" => Helvetica Neue
-- "times"               => Times New Roman
-- "times new roman"     => Times New Roman
+- "helvetica bold"      => Helvetica Regular
+- "helvetica neue bold" => Helvetica Neue Regular
+- "times"               => no match
 - "arial"               => no match
 """
-function match_font(face::FTFont, searchparts)
+function match_font_by_family_and_style(face::FTFont, searchparts)::Tuple{Int, Int}
+
     fname = family_name(face)
+
+    family_matches = any(occursin(part, fname) for part in searchparts)
+
+    # return early if family name doesn't have a match
+    family_matches || return (0, 0)
+
+    # now enhance the score with style information
+
+    remaining_parts = filter(part -> !occursin(part, fname), searchparts)
+
+    family_score = sum(length(part) for part in searchparts if occursin(part, fname))
+
+    # return early if no parts remain for style scoring
+    isempty(remaining_parts) && return (family_score, 0)
+
     sname = style_name(face)
-    # Regular should get selected / full match if we dont specificy any styling!
-    full_name = if sname == "regular"
-        "$fname"
-    else
-        "$fname $sname"
-    end
-    full_name == "" && return 0
-    # count letters of parts that occurred in the font name positively and those that didn't negatively.
-    # we assume that the user knows at least parts of the name and doesn't misspell them
-    # but they might not know the exact name, especially for long font names, or they
-    # might simply not want to be forced to spell it out completely.
-    # therefore we let each part we can find count towards a font, and each that
-    # doesn't match against it, therefore rejecting fonts that mismatch more parts
-    # than they match. this heuristic should be good enough to provide a hassle-free
-    # font selection experience where most spellings that are expected to work, work.
-    match_score = sum(map(part -> (2 * occursin(part, full_name) - 1) * length(part), searchparts))
-    # give shorter font names that matched equally well a higher score after the decimal point.
-    # this should usually pick the "standard" variant of a font as long as it
-    # doesn't have a special identifier like "regular", "roman", "book", etc.
-    # to be fair, with these fonts the old fontconfig method also often fails because
-    # it's not clearly defined what the most normal version is for the user.
-    # it's therefore better to just have them specify these parts of the name that
-    # they think are important. this is especially important for attributes that
-    # fall outside of the standard italic / bold distinction like "condensed",
-    # "semibold", "oblique", etc.
-    final_score = match_score + (1.0 / length(full_name))
-    return final_score
+
+    style_name_matches = any(occursin(part, sname) for part in remaining_parts)
+
+    # return early if no remaining part matches the style name
+    style_name_matches || return (family_score, 0)
+
+    style_score = sum(length(part) for part in remaining_parts if occursin(part, sname))
+
+    (family_score, style_score)
 end
 
 function try_load(fpath)
@@ -108,6 +108,8 @@ function try_load(fpath)
     end
 end
 
+fontname(ft::FTFont) = "$(family_name(ft)) $(style_name(ft))"
+
 function findfont(
         searchstring::String;
         italic::Bool=false, # this is unused in the new implementation
@@ -115,31 +117,77 @@ function findfont(
         additional_fonts::String=""
     )
     font_folders = copy(fontpaths())
-    # normalized_name = family_name(name)
+
     isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
+
     # \W splits at all groups of non-word characters (like space, -, ., etc)
     searchparts = unique(split(lowercase(searchstring), r"\W+", keepempty=false))
-    candidates = Pair{FTFont, Float64}[]
+
+    candidates = Pair{FTFont, Tuple{Int, Int}}[]
+
     for folder in font_folders
         for font in readdir(folder)
             fpath = joinpath(folder, font)
             face = try_load(fpath)
             face === nothing && continue
-            score = match_font(face, searchparts)
+            family_score, style_score = match_font_by_family_and_style(face, searchparts)
             # only take results with net positive character matches into account
-            if floor(score) > 0
-                push!(candidates, face => score)
+            if family_score > 0
+                push!(candidates, face => (family_score, style_score))
             else
                 # help gc a bit! Otherwise, this won't end well with the font keeping tons of open files
                 finalize(face)
             end
         end
     end
-    if !isempty(candidates)
-        sort!(candidates; by=last)
-        final_candidate = pop!(candidates)
-        foreach(x-> finalize(x[1]), candidates)
-        return final_candidate[1]
+
+    isempty(candidates) && return nothing
+
+    # sort by family score then style score, highest first
+    sort!(candidates; by=x -> x[2], rev = true)
+
+
+    # best score for comparison
+    highscore = candidates[1][2] # tuple{int, int}
+
+    # remove all candidates that have lesser scores than the first one
+    for i in 2:length(candidates)
+        if candidates[i][2][1] < highscore[1] || candidates[i][2][2] < highscore[2]
+            foreach(candidates[i:end]) do c
+                finalize(c[1])
+            end
+            # remove finalized candidates
+            candidates = candidates[1:i-1]
+            break
+        end
     end
-    return nothing
+
+    # return early if only one font remains
+    length(candidates) == 1 && return candidates[1][1]
+
+    # now candidates all have the same family and style score
+
+    # prefer regular fonts among the remaining options
+    regular_styles = ("regular", "normal", "medium", "standard", "roman")
+    regular_matches = filter(candidates) do c
+        any(occursin(style, style_name(c[1])) for style in regular_styles)
+    end
+
+    # if any fonts match a regular-type style name, choose the overall shortest
+    if !isempty(regular_matches)
+
+        sort!(regular_matches,
+            by = c -> length(fontname(c[1])))
+
+        shortest = regular_matches[1][1]
+        return shortest
+    end
+
+    # if we have multiple fonts with similar scores and none of them could
+    # be chosen because they were "regular", just choose the shortest font name
+
+    sort!(candidates,
+        by = c -> length(fontname(c[1])))
+
+    shortest = candidates[1][1]
 end
