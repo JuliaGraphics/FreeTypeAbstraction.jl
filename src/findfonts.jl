@@ -153,11 +153,13 @@ function findfont(
     # remove all candidates that have lesser scores than the first one
     for i in 2:length(candidates)
         if candidates[i][2][1] < highscore[1] || candidates[i][2][2] < highscore[2]
-            foreach(candidates[i:end]) do c
-                finalize(c[1])
+            # remove fonts from back to front and finalize them to close
+            # their files
+            for j in length(candidates):-1:i
+                to_remove = pop!(candidates)[1]
+                finalize(to_remove)
             end
-            # remove finalized candidates
-            candidates = candidates[1:i-1]
+            # there will be no other i's we need to check after this
             break
         end
     end
@@ -165,7 +167,8 @@ function findfont(
     # return early if only one font remains
     length(candidates) == 1 && return candidates[1][1]
 
-    # now candidates all have the same family and style score
+    # there is still more than one candidate
+    # all candidates have the same family and style score
 
     # prefer regular fonts among the remaining options
     regular_styles = ("regular", "normal", "medium", "standard", "roman")
@@ -180,14 +183,31 @@ function findfont(
             by = c -> length(fontname(c[1])))
 
         shortest = regular_matches[1][1]
+
+        # close all non-used font files
+        for c in candidates
+            if c[1] !== shortest
+                finalize(c)
+            end
+        end
+
         return shortest
     end
 
-    # if we have multiple fonts with similar scores and none of them could
-    # be chosen because they were "regular", just choose the shortest font name
+    # we didn't find any font with a "regular" name
+    # as a last heuristic, we just choose the font with the shortest name
 
     sort!(candidates,
         by = c -> length(fontname(c[1])))
 
     shortest = candidates[1][1]
+
+    # close all non-used font files
+    for c in candidates
+        if c[1] !== shortest
+            finalize(c)
+        end
+    end
+
+    shortest
 end
