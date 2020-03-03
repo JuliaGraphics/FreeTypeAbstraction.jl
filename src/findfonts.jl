@@ -37,7 +37,7 @@ function style_name(x::FTFont)
     lowercase(x.style_name)
 end
 
-const REGULAR_STYLES = ("regular", "normal", "medium", "standard", "roman")
+const REGULAR_STYLES = ("regular", "normal", "medium", "standard", "roman", "book")
 
 
 """
