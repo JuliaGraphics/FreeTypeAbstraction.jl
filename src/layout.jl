@@ -1,5 +1,3 @@
-const Rect2D = HyperRectangle{2, Float32}
-
 iter_or_array(x) = repeated(x)
 iter_or_array(x::Repeated) = x
 iter_or_array(x::AbstractArray) = x

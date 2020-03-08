@@ -1,6 +1,6 @@
 module FreeTypeAbstraction
 
-using FreeType, StaticArrays, Colors, ColorVectorSpace, GeometryTypes
+using FreeType, StaticArrays, Colors, ColorVectorSpace, GeometryBasics
 using Base.Iterators: Repeated, repeated
 import Base: /, *, ==
 import Base.Broadcast: BroadcastStyle, Style, broadcasted
