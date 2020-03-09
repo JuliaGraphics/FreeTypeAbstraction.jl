@@ -1,6 +1,6 @@
 name = "FreeTypeAbstraction"
 uuid = "663a7486-cb36-511b-a19d-713bb74d65c9"
-version = "0.6.2"
+version = "0.6.3"
 
 [deps]
 ColorVectorSpace = "c3611d14-8923-5661-9e6a-0046d554d3a4"
@@ -12,7 +12,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 [compat]
 ColorVectorSpace = "0.8"
 Colors = "0.11"
-FreeType = "2, 3"
+FreeType = "3"
 GeometryTypes = "0.7, 0.8"
 StaticArrays = "0.12"
 julia = "1"
