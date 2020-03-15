@@ -10,6 +10,7 @@ include("findfonts.jl")
 include("layout.jl")
 include("rendering.jl")
 
+export FTFont
 export newface
 export renderface
 export FontExtent
