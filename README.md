@@ -7,7 +7,7 @@ Draw text into a Matrix.
 using FreeTypeAbstraction
 
 # load a font
-face = newface("hack_regular.ttf")
+face = FTFont("hack_regular.ttf")
 
 # render a character
 img, metric = renderface(face, 'C')
