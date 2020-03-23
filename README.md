@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/JuliaGraphics/FreeTypeAbstraction.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaGraphics/FreeTypeAbstraction.jl)
+[![Build Status](https://travis-ci.org/JuliaGraphics/FreeTypeAbstraction.jl.svg?branch=master)](https://travis-ci.org/JuliaGraphics/FreeTypeAbstraction.jl)
 # FreeTypeAbstraction
 
 Draw text into a Matrix.
