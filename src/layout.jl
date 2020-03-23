@@ -34,8 +34,8 @@ function iterate_extents(f, line::AbstractString, fonts, scales)
     iterator = zip(line, iter_or_array(scales), iter_or_array(fonts))
     lastpos = 0.0
     for (char, scale, font) in iterator
-        extent, glyph_box = metrics_bb(char, font, scale)
-        mini = minimimum(glyph_box) .+ Vec2f0(lastpos, 0.0)
+        glyph_box, extent = metrics_bb(char, font, scale)
+        mini = minimum(glyph_box) .+ Vec2f0(lastpos, 0.0)
         glyph_box = Rect2D(mini, widths(glyph_box))
         glyph_advance = Point2f0(extent.advance)
         lastpos += glyph_advance[1]
@@ -53,5 +53,5 @@ function glyph_rects(line::AbstractString, fonts, scales)
 end
 
 function boundingbox(line::AbstractString, fonts, scales)
-    reduce(union, glyph_rects(lines, fonts, scales))
+    return reduce(union, glyph_rects(line, fonts, scales))
 end
