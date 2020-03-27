@@ -149,7 +149,7 @@ function Base.getproperty(font::FTFont, fieldname::Symbol)
         field == C_NULL && return ""
         return unsafe_string(field)
     # Some fields segfault with unsafe_load...Lets find out which another day :D
-    elseif field isa Ptr{FreeType.LibFreeType.FT_GlyphSlotRec}
+    elseif field isa Ptr{FreeType.FT_GlyphSlotRec}
         return unsafe_load(field)
     else
         return field
