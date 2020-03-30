@@ -156,6 +156,9 @@ function Base.getproperty(font::FTFont, fieldname::Symbol)
     end
 end
 
+# Allow broadcasting over fonts
+Base.Broadcast.broadcastable(ft::FTFont) = Ref(ft)
+
 get_pixelsize(face::FTFont) = getfield(face, :current_pixelsize)[]
 
 function set_pixelsize(face::FTFont, size::Integer)
