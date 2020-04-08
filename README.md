@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/JuliaGraphics/FreeTypeAbstraction.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaGraphics/FreeTypeAbstraction.jl)
+[![Build Status](https://travis-ci.org/JuliaGraphics/FreeTypeAbstraction.jl.svg?branch=master)](https://travis-ci.org/JuliaGraphics/FreeTypeAbstraction.jl)
 # FreeTypeAbstraction
 
 Draw text into a Matrix.
@@ -7,7 +9,7 @@ Draw text into a Matrix.
 using FreeTypeAbstraction
 
 # load a font
-face = newface("hack_regular.ttf")
+face = FTFont("hack_regular.ttf")
 
 # render a character
 img, metric = renderface(face, 'C')

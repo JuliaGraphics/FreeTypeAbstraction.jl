@@ -1,9 +1,12 @@
 using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryBasics
 using Test
-using FreeTypeAbstraction: Vec, glyph_rects, get_extent, FTFont, kerning
+using FreeTypeAbstraction: boundingbox, Vec, glyph_rects, get_extent, FTFont, kerning
 using FreeType
 
 face = FreeTypeAbstraction.findfont("hack"; additional_fonts=@__DIR__)
+
+bb = boundingbox("asdasd", face, 1.0)
+@test bb == Rect(4.0, -1.0, 224.0, 50.0)
 
 FA = FreeTypeAbstraction
 
