@@ -1,4 +1,4 @@
-using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryTypes
+using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryBasics
 using Test
 using FreeTypeAbstraction: Vec, glyph_rects, get_extent, FTFont, kerning
 using FreeType
