@@ -1,4 +1,4 @@
-using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryTypes
+using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryBasics
 using Test
 using FreeTypeAbstraction: boundingbox, Vec, glyph_rects, get_extent, FTFont, kerning
 using FreeType
@@ -39,6 +39,7 @@ a = renderstring!(
     50,
     valign = :vtop,
 )
+
 @test all(a[1:10, :] .== 0)
 @test any(a[11:20, :] .!= 0)
 a = renderstring!(
