@@ -21,4 +21,4 @@ myarray = zeros(UInt8,100,100)
 renderstring!(myarray, "hello", face, (10,10), 90, 10, halign=:hright)
 ```
 
-credits to @aaalexandrov from whom most of the code stems.
+credits to @aaalexandrov from whom most of the early code comes.
