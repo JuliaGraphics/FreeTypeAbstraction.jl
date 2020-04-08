@@ -39,6 +39,7 @@ a = renderstring!(
     50,
     valign = :vtop,
 )
+
 @test all(a[1:10, :] .== 0)
 @test any(a[11:20, :] .!= 0)
 a = renderstring!(
@@ -50,6 +51,7 @@ a = renderstring!(
     50,
     valign = :vcenter,
 )
+
 @test all(a[vcat(1:5, 16:end), :] .== 0)
 @test any(a[6:15, :] .!= 0)
 a = renderstring!(
@@ -72,7 +74,8 @@ a = renderstring!(
     50,
     valign = :vbottom,
 )
-@test any(a[1:10, :] .!= 0)
+
+@test any(a[1
 @test all(a[11:20, :] .== 0)
 a = renderstring!(
     zeros(UInt8, 20, 100),
