@@ -5,6 +5,37 @@ using FreeType
 
 face = FreeTypeAbstraction.findfont("hack"; additional_fonts=@__DIR__)
 
+FreeTypeAbstraction.get_pixelsize(face)
+FreeTypeAbstraction.set_pixelsize(face, 122)
+FreeTypeAbstraction.set_pixelsize(face, 64)
+err = FT_Load_Char(face, 'm', FT_LOAD_DEFAULT)
+metrics = face.glyph.metrics
+# 64 since metrics are in 1/64 units (units to 26.6 fractional pixels)
+FontExtent(metrics, 64.0)
+
+
+
+
+
+
+
+
+err = FT_Load_Char(face, 'm', FT_LOAD_NO_AUTOHINT)
+metrics = face.glyph.metrics
+# 64 since metrics are in 1/64 units (units to 26.6 fractional pixels)
+FontExtent(metrics, 1.0)
+
+
+
+
+
+
+
+
+
+
+
+
 bb = boundingbox("asdasd", face, 1.0)
 @test bb == Rect(4.0, -1.0, 224.0, 50.0)
 

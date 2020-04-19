@@ -1,6 +1,5 @@
 
-function renderface(face::FTFont, c::Char,
-                    pixelsize::Integer=get_pixelsize(face))
+function renderface(face::FTFont, c::Char, pixelsize::Integer)
     set_pixelsize(face, pixelsize)
     loadchar(face, c)
     glyph = face.glyph

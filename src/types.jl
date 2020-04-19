@@ -35,6 +35,16 @@ struct FontExtent{T}
     scale::Vec{2, T}
 end
 
+hadvance(ext::FontExtent) = ext.advance[1]
+inkwidth(ext::FontExtent) = ext.scale[1]
+inkheight(ext::FontExtent) = ext.scale[2]
+hbearing_ori_to_left(ext::FontExtent) = ext.horizontal_bearing[1]
+hbearing_ori_to_top(ext::FontExtent) = ext.horizontal_bearing[2]
+leftinkbound(ext::FontExtent) = hbearing_ori_to_left(ext)
+rightinkbound(ext::FontExtent) = leftinkbound(ext) + inkwidth(ext)
+bottominkbound(ext::FontExtent) = hbearing_ori_to_top(ext) - inkheight(ext)
+topinkbound(ext::FontExtent) = hbearing_ori_to_top(ext)
+
 BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
 BroadcastStyle(::Style{FontExtent}, x) = Style{FontExtent}()
 BroadcastStyle(x, ::Style{FontExtent}) = Style{FontExtent}()
@@ -110,20 +120,18 @@ end
 
 mutable struct FTFont
     ft_ptr::FreeType.FT_Face
-    current_pixelsize::Base.RefValue{Int}
     use_cache::Bool
-    cache::Dict{Tuple{Int, Char}, FontExtent{Float32}}
-    function FTFont(ft_ptr::FreeType.FT_Face, pixel_size::Int=64, use_cache::Bool=true)
-        cache = Dict{Tuple{Int, Char}, FontExtent{Float32}}()
-        face = new(ft_ptr, Ref(pixel_size), use_cache, cache)
+    extent_cache::Dict{Char, FontExtent{Float32}}
+    function FTFont(ft_ptr::FreeType.FT_Face, use_cache::Bool=true)
+        extent_cache = Dict{Tuple{Int, Char}, FontExtent{Float32}}()
+        face = new(ft_ptr, use_cache, extent_cache)
         finalizer(safe_free, face)
-        FT_Set_Pixel_Sizes(face, pixel_size, 0);
         return face
     end
 end
 
 use_cache(face::FTFont) = getfield(face, :use_cache)
-get_cache(face::FTFont) = getfield(face, :cache)
+get_cache(face::FTFont) = getfield(face, :extent_cache)
 
 function FTFont(path::String)
     return FTFont(newface(path))
@@ -159,13 +167,9 @@ end
 # Allow broadcasting over fonts
 Base.Broadcast.broadcastable(ft::FTFont) = Ref(ft)
 
-get_pixelsize(face::FTFont) = getfield(face, :current_pixelsize)[]
-
 function set_pixelsize(face::FTFont, size::Integer)
-    get_pixelsize(face) == size && return size
     err = FT_Set_Pixel_Sizes(face, size, size)
     check_error(err, "Couldn't set pixelsize")
-    getfield(face, :current_pixelsize)[] = size
     return size
 end
 
@@ -182,13 +186,13 @@ function kerning(c1::Char, c2::Char, face::FTFont)
 end
 
 function loadchar(face::FTFont, c::Char)
-    err = FT_Load_Char(face, c, FT_LOAD_RENDER)
+    err = FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_NO_HINTING)
     check_error(err, "Could not load char to render.")
 end
 
 function get_extent(face::FTFont, char::Char)
     if use_cache(face)
-        get!(get_cache(face), (get_pixelsize(face), char)) do
+        get!(get_cache(face), char) do
             return internal_get_extent(face, char)
         end
     else
@@ -197,9 +201,11 @@ function get_extent(face::FTFont, char::Char)
 end
 
 function internal_get_extent(face::FTFont, char::Char)
-    err = FT_Load_Char(face, char, FT_LOAD_DEFAULT)
+    err = FT_Load_Char(face, char, FT_LOAD_NO_SCALE)
     check_error(err, "Could not load char to get extend.")
-    metrics = face.glyph.metrics
-    # 64 since metrics are in 1/64 units (units to 26.6 fractional pixels)
-    return FontExtent(metrics, Float32(64))
+    # This gives us the font metrics in normalized units (-1, 1)
+    return FontExtent(face.glyph.metrics, Float32(face.units_per_EM))
 end
+
+descender(font) = font.descender / font.units_per_EM
+ascender(font) = font.ascender / font.units_per_EM
