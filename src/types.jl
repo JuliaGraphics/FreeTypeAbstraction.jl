@@ -196,9 +196,18 @@ function get_extent(face::FTFont, char::Char)
 end
 
 function internal_get_extent(face::FTFont, char::Char)
+    #=
+    Load chars without scaling. This leaves all glyph metrics that can be
+    retrieved in font units, which can be normalized by dividing with the
+    font's units_per_EM. This is more robust than relying on extents
+    that are only valid with a specific pixelsize, because a font's
+    pixelsize can be silently changed by third parties, such as Cairo.
+    If that happens, all glyph metrics are incorrect. We avoid this by using the normalized space.
+    =#
     err = FT_Load_Char(face, char, FT_LOAD_NO_SCALE)
-    check_error(err, "Could not load char to get extend.")
-    # This gives us the font metrics in normalized units (-1, 1)
+    check_error(err, "Could not load char to get extent.")
+    # This gives us the font metrics in normalized units (0, 1), with negative
+    # numbers interpreted as an offset
     return FontExtent(face.glyph.metrics, Float32(face.units_per_EM))
 end
 
