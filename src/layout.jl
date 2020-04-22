@@ -5,10 +5,20 @@ iter_or_array(x::AbstractArray) = x
 iter_or_array(x::StaticArray) = repeated(x)
 
 
-function metrics_bb(char::Char, font::FTFont, scale)
-    extent = get_extent(font, char) .* Vec2f0(scale)
+function metrics_bb(char::Char, font::FTFont, pixel_size)
+    extent = get_extent(font, char) .* Vec2f0(pixel_size)
     mini = bearing(extent)
     return Rect2D(mini, Vec2f0(extent.scale)), extent
+end
+
+function boundingbox(char::Char, font::FTFont, pixel_size)
+    bb, extent = metrics_bb(char, font, pixel_size)
+    return bb
+end
+
+function glyph_ink_size(char::Char, font::FTFont, pixel_size)
+    bb, extent = metrics_bb(char, font, pixel_size)
+    return widths(bb)
 end
 
 """
@@ -41,7 +51,6 @@ function iterate_extents(f, line::AbstractString, fonts, scales)
     end
 end
 
-
 function glyph_rects(line::AbstractString, fonts, scales)
     rects = Rect2D[]
     iterate_extents(line, fonts, scales) do char, box, advance
@@ -52,4 +61,20 @@ end
 
 function boundingbox(line::AbstractString, fonts, scales)
     return reduce(union, glyph_rects(line, fonts, scales))
+end
+
+function inkboundingbox(ext::FontExtent)
+    l = leftinkbound(ext)
+    r = rightinkbound(ext)
+    b = bottominkbound(ext)
+    t = topinkbound(ext)
+    return FRect2D((l, b), (r - l, t - b))
+end
+
+function height_insensitive_boundingbox(ext::FontExtent, font::FTFont)
+    l = leftinkbound(ext)
+    r = rightinkbound(ext)
+    b = descender(font)
+    t = ascender(font)
+    return FRect2D((l, b), (r - l, t - b))
 end
