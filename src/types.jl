@@ -185,11 +185,6 @@ function kerning(c1::Char, c2::Char, face::FTFont)
     return Vec2f0(kerning2d[].x / divisor, kerning2d[].y / divisor)
 end
 
-function loadchar(face::FTFont, c::Char)
-    err = FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_NO_HINTING)
-    check_error(err, "Could not load char to render.")
-end
-
 function get_extent(face::FTFont, char::Char)
     if use_cache(face)
         get!(get_cache(face), char) do

@@ -8,7 +8,12 @@ iter_or_array(x::StaticArray) = repeated(x)
 function metrics_bb(char::Char, font::FTFont, pixel_size)
     extent = get_extent(font, char) .* Vec2f0(pixel_size)
     mini = bearing(extent)
-    return Rect2D(mini, Vec2f0(extent.pixel_size)), extent
+    return Rect2D(mini, Vec2f0(extent.scale)), extent
+end
+
+function boundingbox(char::Char, font::FTFont, pixel_size)
+    bb, extent = metrics_bb(char, font, pixel_size)
+    return bb
 end
 
 function glyph_ink_size(char::Char, font::FTFont, pixel_size)

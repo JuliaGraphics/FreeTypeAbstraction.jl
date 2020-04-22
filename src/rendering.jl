@@ -1,10 +1,15 @@
 
+function loadchar(face::FTFont, c::Char)
+    err = FT_Load_Char(face, c, FT_LOAD_RENDER)
+    check_error(err, "Could not load char to render.")
+end
+
 function renderface(face::FTFont, c::Char, pixelsize::Integer)
     set_pixelsize(face, pixelsize)
     loadchar(face, c)
     glyph = face.glyph
     @assert glyph.format == FreeType.FT_GLYPH_FORMAT_BITMAP
-    return glyphbitmap(glyph.bitmap), get_extent(face, c)
+    return glyphbitmap(glyph.bitmap), FontExtent(glyph.metrics)
 end
 
 function glyphbitmap(bitmap::FreeType.FT_Bitmap)
@@ -45,17 +50,17 @@ function renderstring!(
 
     if pixelsize isa Tuple
         @warn "using tuple for pixelsize is deprecated, please use one integer"
-        set_pixelsize(face, pixelsize[1])
-    else
-        set_pixelsize(face, pixelsize)
+        pixelsize = pixelsize[1]
     end
+
+    set_pixelsize(face, pixelsize)
 
     bitmaps = Vector{Matrix{UInt8}}(undef, lastindex(str))
     metrics = Vector{FontExtent{Int}}(undef, lastindex(str))
     ymin = ymax = sumadvancex = 0
 
     for (istr, char) = enumerate(str)
-        bitmap, metric_float = renderface(face, char)
+        bitmap, metric_float = renderface(face, char, pixelsize)
         metric = round.(Int, metric_float)
         bitmaps[istr] = bitmap
         metrics[istr] = metric
