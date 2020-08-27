@@ -11,9 +11,9 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 ColorVectorSpace = "0.8"
-GeometryBasics = "0.2"
 Colors = "0.11, 0.12"
 FreeType = "3"
+GeometryBasics = "0.2, 0.3"
 StaticArrays = "0.12"
 julia = "1"
 
