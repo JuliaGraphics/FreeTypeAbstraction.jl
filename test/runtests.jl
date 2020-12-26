@@ -175,8 +175,11 @@ fontpaths = FreeTypeAbstraction.fontpaths()
 
 isempty(fontpaths) && println("OS doesn't have any font folder")
 
-if Sys.islinux() || Sys.isapple()
+if Sys.islinux()
     fonts = ["dejavu sans"]
+    # apple on gh-actions doesn't seem to have any fonts...
+elseif Sys.isapple()
+    fonts = []
 else # windows have some more fonts installed per default
     fonts = [
         "Times New Roman",
