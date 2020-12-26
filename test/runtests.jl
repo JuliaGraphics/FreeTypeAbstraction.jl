@@ -175,9 +175,9 @@ fontpaths = FreeTypeAbstraction.fontpaths()
 
 isempty(fontpaths) && println("OS doesn't have any font folder")
 
-if Sys.islinux()
-    fonts = ["dejavu sans",]
-else # OSX + windows have some more fonts installed per default
+if Sys.islinux() || Sys.isapple()
+    fonts = ["dejavu sans"]
+else # windows have some more fonts installed per default
     fonts = [
         "Times New Roman",
         "Arial",
