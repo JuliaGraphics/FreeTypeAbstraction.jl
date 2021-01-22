@@ -21,6 +21,16 @@ myarray = zeros(UInt8, 100, 100)
 pixelsize = 10
 x0, y0 = 90, 10
 renderstring!(myarray, "hello", face, pixelsize, x0, y0, halign=:hright)
+
+# find fonts
+
+f = findfont("helv bo")
+f.family_name * " " * f.style_name
+# => "Helvetica LT Std Bold"
+
+f = findfont("Ari")
+f.family_name * " " * f.style_name
+# => "Arial Unicode MS Regular"
 ```
 
 credits to @aaalexandrov from whom most of the early code comes.

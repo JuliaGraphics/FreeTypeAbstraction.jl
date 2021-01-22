@@ -41,38 +41,6 @@ end
 const REGULAR_STYLES = ("regular", "normal", "medium", "standard", "roman", "book")
 
 
-"""
-Match a font using the user-specified search string. Each part of the search string
-is searched in the family name first which has to match once to include the font
-in the candidate list. For fonts with a family match the style
-name is matched next. For fonts with the same family and style name scores, regular
-fonts are preferred (any font that is "regular", "normal", "medium", "standard" or "roman")
-and as a last tie-breaker, shorter overall font names are preferred.
-
-
-Example:
-
-If we had only four fonts:
-- Helvetica Italic
-- Helvetica Regular
-- Helvetica Neue Regular
-- Helvetica Neue Light
-
-Then this is how this function would match different search strings:
-- "helvetica"           => Helvetica Regular
-- "helv"                => Helvetica Regular
-- "HeLvEtIcA"           => Helvetica Regular
-- "helvetica italic"    => Helvetica Italic
-- "helve ita"           => Helvetica Italic
-- "helvetica neue"      => Helvetica Neue Regular
-- "tica eue"            => Helvetica Neue Regular
-- "helvetica light"     => Helvetica Neue Light
-- "light"               => Helvetica Neue Light
-- "helvetica bold"      => Helvetica Regular
-- "helvetica neue bold" => Helvetica Neue Regular
-- "times"               => no match
-- "arial"               => no match
-"""
 function match_font(face::FTFont, searchparts)::Tuple{Int, Int, Bool, Int}
 
     fname = family_name(face)
@@ -80,7 +48,6 @@ function match_font(face::FTFont, searchparts)::Tuple{Int, Int, Bool, Int}
     is_regular_style = any(occursin(s, sname) for s in REGULAR_STYLES)
 
     fontlength_penalty = -(length(fname) + length(sname))
-
 
     family_matches = any(occursin(part, fname) for part in searchparts)
 
@@ -116,7 +83,54 @@ end
 
 fontname(ft::FTFont) = "$(family_name(ft)) $(style_name(ft))"
 
+"""
+	findfont(
+			searchstring::String;
+			additional_fonts::String=""
+		)
 
+Find a font that matches the specified search string.
+
+Each part of the search string
+is searched in the family name first which has to match once to include the font
+in the candidate list. For fonts with a family match the style
+name is matched next. For fonts with the same family and style name scores, regular
+fonts are preferred (any font that is "regular", "normal", "medium", "standard" or "roman")
+and as a last tie-breaker, shorter overall font names are preferred.
+
+If the search string precisely matches the name of a valid
+font file (with or without extensions "otf" or "ttf"), the
+font in that file is selected.
+
+Example:
+
+If we had only four fonts:
+- Helvetica Italic
+- Helvetica Regular
+- Helvetica Neue Regular
+- Helvetica Neue Light
+
+Then this is how this function would match different search strings:
+- "helvetica"           => Helvetica Regular
+- "helv"                => Helvetica Regular
+- "HeLvEtIcA"           => Helvetica Regular
+- "helvetica italic"    => Helvetica Italic
+- "helve ita"           => Helvetica Italic
+- "helvetica neue"      => Helvetica Neue Regular
+- "tica eue"            => Helvetica Neue Regular
+- "helvetica light"     => Helvetica Neue Light
+- "light"               => Helvetica Neue Light
+- "helvetica bold"      => Helvetica Regular
+- "helvetica neue bold" => Helvetica Neue Regular
+- "times"               => no match
+- "arial"               => no match
+
+File matching:
+
+- "AvenirLTStd-Heavy"     => use the font in file "AvenirLTStd-Heavy.otf"
+- "AvenirLTStd-Heavy.otf" => use the font in file "AvenirLTStd-Heavy.otf"
+
+"""
 function findfont(
         searchstring::String;
         italic::Bool=false, # this is unused in the new implementation
@@ -135,9 +149,23 @@ function findfont(
     best_score_so_far = (0, 0, false, typemin(Int))
     best_font = nothing
 
+	found = false
+
     for folder in font_folders
         for font in readdir(folder)
             fpath = joinpath(folder, font)
+
+			# look for a file that exactly matches the search string (with or without extension)
+			filefontname, filefontext = splitext(font)
+			if searchstring == font || (searchstring == filefontname && lowercase(filefontext) ∈ (".otf", ".ttf"))
+				face = try_load(fpath)
+	            face === nothing && continue  # not a font
+				best_font = face
+				found = true
+				@debug "found font file $(fpath) to match \"$(searchstring)\""
+				break
+			end
+
             face = try_load(fpath)
             face === nothing && continue
 
@@ -165,7 +193,7 @@ function findfont(
                 finalize(face)
             end
         end
+		found && break
     end
-
     best_font
 end

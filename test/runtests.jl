@@ -194,18 +194,21 @@ else # windows have some more fonts installed per default
 end
 
 @testset "finding fonts" begin
-
     for font in fonts
         @testset "finding $font" begin
             @test findfont(font) != nothing
         end
+    end
+    @testset "finding font file" begin
+        @test findfont("hack_regular.ttf", additional_fonts =".") != nothing
+        @test findfont("hack_regular",     additional_fonts =".") != nothing
+        @test findfont("hack_regular.otf", additional_fonts =".") == nothing
     end
     @testset "find in additional dir" begin
         @test findfont("Hack") == nothing
         @test findfont("Hack", additional_fonts = @__DIR__) != nothing
     end
 end
-
 
 @testset "loading lots of fonts" begin
     for i = 1:10
