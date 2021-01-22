@@ -20,7 +20,7 @@ else
     end
     function _font_paths()
         result = String[]
-	for p in ("/usr/share/fonts", joinpath(homedir(), ".fonts"), joinpath(homedir(), ".local/share/fonts"), "/usr/local/share/fonts",)
+    for p in ("/usr/share/fonts", joinpath(homedir(), ".fonts"), joinpath(homedir(), ".local/share/fonts"), "/usr/local/share/fonts",)
             if isdir(p)
                 push!(result, p)
                 add_recursive(result, p)
@@ -84,10 +84,10 @@ end
 fontname(ft::FTFont) = "$(family_name(ft)) $(style_name(ft))"
 
 """
-	findfont(
-			searchstring::String;
-			additional_fonts::String=""
-		)
+    findfont(
+            searchstring::String;
+            additional_fonts::String=""
+        )
 
 Find a font that matches the specified search string.
 
@@ -149,22 +149,22 @@ function findfont(
     best_score_so_far = (0, 0, false, typemin(Int))
     best_font = nothing
 
-	found = false
+    found = false
 
     for folder in font_folders
         for font in readdir(folder)
             fpath = joinpath(folder, font)
 
-			# look for a file that exactly matches the search string (with or without extension)
-			filefontname, filefontext = splitext(font)
-			if searchstring == font || (searchstring == filefontname && lowercase(filefontext) ∈ (".otf", ".ttf"))
-				face = try_load(fpath)
-	            face === nothing && continue  # not a font
-				best_font = face
-				found = true
-				@debug "found font file $(fpath) to match \"$(searchstring)\""
-				break
-			end
+            # look for a file that exactly matches the search string (with or without extension)
+            filefontname, filefontext = splitext(font)
+            if searchstring == font || (searchstring == filefontname && lowercase(filefontext) ∈ (".otf", ".ttf"))
+                face = try_load(fpath)
+                face === nothing && continue  # not a font
+                best_font = face
+                found = true
+                @debug "found font file $(fpath) to match \"$(searchstring)\""
+                break
+            end
 
             face = try_load(fpath)
             face === nothing && continue
@@ -193,7 +193,7 @@ function findfont(
                 finalize(face)
             end
         end
-		found && break
+        found && break
     end
     best_font
 end
