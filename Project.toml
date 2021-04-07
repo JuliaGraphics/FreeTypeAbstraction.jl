@@ -10,7 +10,7 @@ GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-ColorVectorSpace = "0.8"
+ColorVectorSpace = "0.8, 0.9"
 Colors = "0.11, 0.12"
 FreeType = "3"
 GeometryBasics = "0.2, 0.3"
