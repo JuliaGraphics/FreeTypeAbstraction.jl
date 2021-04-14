@@ -7,7 +7,7 @@ end
 function renderface(face::FTFont, c::Char, pixelsize::Integer)
     set_pixelsize(face, pixelsize)
     loadchar(face, c)
-    glyph = face.glyph
+    glyph = unsafe_load(face.glyph)
     @assert glyph.format == FreeType.FT_GLYPH_FORMAT_BITMAP
     return glyphbitmap(glyph.bitmap), FontExtent(glyph.metrics)
 end

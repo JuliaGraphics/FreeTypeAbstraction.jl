@@ -156,9 +156,6 @@ function Base.getproperty(font::FTFont, fieldname::Symbol)
     if field isa Ptr{FT_String}
         field == C_NULL && return ""
         return unsafe_string(field)
-    # Some fields segfault with unsafe_load...Lets find out which another day :D
-    elseif field isa Ptr{FreeType.LibFreeType.FT_GlyphSlotRec}
-        return unsafe_load(field)
     else
         return field
     end
@@ -208,7 +205,7 @@ function internal_get_extent(face::FTFont, char::Char)
     check_error(err, "Could not load char to get extent.")
     # This gives us the font metrics in normalized units (0, 1), with negative
     # numbers interpreted as an offset
-    return FontExtent(face.glyph.metrics, Float32(face.units_per_EM))
+    return FontExtent(unsafe_load(face.glyph).metrics, Float32(face.units_per_EM))
 end
 
 descender(font) = font.descender / font.units_per_EM
