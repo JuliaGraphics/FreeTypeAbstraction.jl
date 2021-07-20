@@ -102,7 +102,7 @@ function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer)
 end
 
 function bearing(extent::FontExtent)
-    return Vec2f0(extent.horizontal_bearing[1],
+    return Vec2f(extent.horizontal_bearing[1],
                   -(extent.scale[2] - extent.horizontal_bearing[2]))
 end
 
@@ -115,7 +115,7 @@ end
 
 function boundingbox(extent::FontExtent)
     mini = bearing(extent)
-    return Rect2D(mini, Vec2f0(extent.scale))
+    return Rect2(mini, Vec2f(extent.scale))
 end
 
 mutable struct FTFont
@@ -176,10 +176,10 @@ function kerning(c1::Char, c2::Char, face::FTFont)
     kerning2d = Ref{FreeType.FT_Vector}()
     err = FT_Get_Kerning(face, i1, i2, FreeType.FT_KERNING_DEFAULT, kerning2d)
     # Can error if font has no kerning! Since that's somewhat expected, we just return 0
-    err != 0 && return Vec2f0(0)
+    err != 0 && return Vec2f(0)
     # 64 since metrics are in 1/64 units (units to 26.6 fractional pixels)
     divisor = 64
-    return Vec2f0(kerning2d[].x / divisor, kerning2d[].y / divisor)
+    return Vec2f(kerning2d[].x / divisor, kerning2d[].y / divisor)
 end
 
 function get_extent(face::FTFont, char::Char)
