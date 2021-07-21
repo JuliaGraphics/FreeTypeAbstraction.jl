@@ -6,9 +6,9 @@ iter_or_array(x::StaticArray) = repeated(x)
 
 
 function metrics_bb(char::Char, font::FTFont, pixel_size)
-    extent = get_extent(font, char) .* Vec2f0(pixel_size)
+    extent = get_extent(font, char) .* Vec2f(pixel_size)
     mini = bearing(extent)
-    return Rect2D(mini, Vec2f0(extent.scale)), extent
+    return Rect2(mini, Vec2f(extent.scale)), extent
 end
 
 function boundingbox(char::Char, font::FTFont, pixel_size)
@@ -28,7 +28,7 @@ Newlines will be drawn like any other character.
 `fonts` can be a vector of fonts, or a single font.
 `scales` can be a single float or a Vec2, or a vector of any of those.
 
-`f` will get called with `(char::Char, glyph_box::Rec2D, glyph_advance::Point2f0)`.
+`f` will get called with `(char::Char, glyph_box::Rec2D, glyph_advance::Point2f)`.
 
 `char` is the currently iterated char.
 
@@ -43,16 +43,16 @@ function iterate_extents(f, line::AbstractString, fonts, scales)
     lastpos = 0.0
     for (char, scale, font) in iterator
         glyph_box, extent = metrics_bb(char, font, scale)
-        mini = minimum(glyph_box) .+ Vec2f0(lastpos, 0.0)
-        glyph_box = Rect2D(mini, widths(glyph_box))
-        glyph_advance = Point2f0(extent.advance)
+        mini = minimum(glyph_box) .+ Vec2f(lastpos, 0.0)
+        glyph_box = Rect2(mini, widths(glyph_box))
+        glyph_advance = Point2f(extent.advance)
         lastpos += glyph_advance[1]
         f(char, glyph_box, glyph_advance)
     end
 end
 
 function glyph_rects(line::AbstractString, fonts, scales)
-    rects = Rect2D[]
+    rects = Rect2[]
     iterate_extents(line, fonts, scales) do char, box, advance
         push!(rects, box)
     end
@@ -68,7 +68,7 @@ function inkboundingbox(ext::FontExtent)
     r = rightinkbound(ext)
     b = bottominkbound(ext)
     t = topinkbound(ext)
-    return FRect2D((l, b), (r - l, t - b))
+    return Rect2f((l, b), (r - l, t - b))
 end
 
 function height_insensitive_boundingbox(ext::FontExtent, font::FTFont)
@@ -76,5 +76,5 @@ function height_insensitive_boundingbox(ext::FontExtent, font::FTFont)
     r = rightinkbound(ext)
     b = descender(font)
     t = ascender(font)
-    return FRect2D((l, b), (r - l, t - b))
+    return Rect2f((l, b), (r - l, t - b))
 end
