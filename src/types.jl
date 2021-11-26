@@ -161,6 +161,10 @@ function Base.getproperty(font::FTFont, fieldname::Symbol)
     end
 end
 
+function Base.show(io::IO, font::FTFont)
+    print(io, "FTFont (family = $(font.family_name), style = $(font.style_name))")
+end
+
 # Allow broadcasting over fonts
 Base.Broadcast.broadcastable(ft::FTFont) = Ref(ft)
 
