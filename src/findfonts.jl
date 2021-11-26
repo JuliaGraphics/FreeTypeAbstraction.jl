@@ -7,7 +7,10 @@ if Sys.isapple()
         ]
     end
 elseif Sys.iswindows()
-    _font_paths() = [joinpath(get(ENV, "SYSTEMROOT", "C:\\Windows"), "Fonts")]
+    _font_paths() = [
+        joinpath(get(ENV, "SYSTEMROOT", "C:\\Windows"), "Fonts"),
+        joinpath(homedir(), "AppData", "Local", "Microsoft", "Windows", "Fonts"),
+    ]
 else
     function add_recursive(result, path)
         for p in readdir(path)
@@ -129,8 +132,6 @@ function findfont(
 
     # \W splits at all groups of non-word characters (like space, -, ., etc)
     searchparts = unique(split(lowercase(searchstring), r"\W+", keepempty=false))
-
-    candidates = Pair{FTFont, Tuple{Int, Int}}[]
 
     best_score_so_far = (0, 0, false, typemin(Int))
     best_font = nothing

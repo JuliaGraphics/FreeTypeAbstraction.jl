@@ -5,6 +5,8 @@ using FreeType
 
 face = FreeTypeAbstraction.findfont("hack"; additional_fonts=@__DIR__)
 
+@test repr(face) == "FTFont (family = Hack, style = Regular)"
+
 bb = boundingbox("asdasd", face, 64)
 @test round.(Int, minimum(bb)) == Vec(4, -1)
 @test round.(Int, widths(bb)) == Vec2(221, 50)
