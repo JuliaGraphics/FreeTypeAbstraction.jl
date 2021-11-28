@@ -4,6 +4,8 @@ if Sys.isapple()
             "/Library/Fonts", # Additional fonts that can be used by all users. This is generally where fonts go if they are to be used by other applications.
             joinpath(homedir(), "Library/Fonts"), # Fonts specific to each user.
             "/Network/Library/Fonts", # Fonts shared for users on a network
+            "/System/Library/Fonts", # System specific fonts
+            "/System/Library/Fonts/Supplemental", # new location since Catalina
         ]
     end
 elseif Sys.iswindows()
