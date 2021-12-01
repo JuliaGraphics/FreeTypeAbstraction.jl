@@ -57,6 +57,7 @@ function renderstring!(
 
     bitmaps = Vector{Matrix{UInt8}}(undef, lastindex(str))
     metrics = Vector{FontExtent{Int}}(undef, lastindex(str))
+    # ymin and ymax w.r.t the baseline
     ymin = ymax = sumadvancex = 0
 
     for (istr, char) = enumerate(str)
@@ -64,7 +65,10 @@ function renderstring!(
         metric = round.(Int, metric_float)
         bitmaps[istr] = bitmap
         metrics[istr] = metric
+
+        # scale of glyph (size of bitmap)
         w, h = metric.scale
+        # offset between glyph origin and bitmap top left corner
         bx, by = metric.horizontal_bearing
         ymin = min(ymin, by - h)
         ymax = max(ymax, by)
@@ -80,7 +84,7 @@ function renderstring!(
     bitmapmax = typemax(eltype(bitmaps[1]))
 
     imgh, imgw = size(img)
-    if bcolor != nothing
+    if bcolor !== nothing
         img[
             clamp(py-ymax+1, 1, imgh) : clamp(py-ymin-1, 1, imgh),
             clamp(px-1, 1, imgw) : clamp(px+sumadvancex-1, 1, imgw)
@@ -91,19 +95,23 @@ function renderstring!(
     for (istr, char) = enumerate(str)
         w, h = metrics[istr].scale
         bx, by = metrics[istr].horizontal_bearing
+
         if istr == 1
             prev_char = char
         else
             kx, ky = map(x-> round(Int, x), kerning(prev_char, char, face))
             px += kx
         end
-        cliprowlo, cliprowhi = max(0, by-py), max(0, h+py-by-imgh)
-        clipcollo, clipcolhi = max(0, bx-px), max(0, w+px-bx-imgw)
-        if bcolor == nothing
+
+        # trim parts of glyph images that are outside the destination
+        cliprowlo, cliprowhi = max(0, -(py-by)), max(0, py - by + h - imgh)
+        clipcollo, clipcolhi = max(0, -bx-px),   max(0, px + bx + w - imgw)
+
+        if bcolor === nothing
             for row = 1+cliprowlo : h-cliprowhi, col = 1+clipcollo : w-clipcolhi
                 bitmaps[istr][col,row]==0 && continue
                 c1 = bitmaps[istr][col,row] / bitmapmax * fcolor
-                img[row+py-by, col+px-bx] = T <: Integer ? round(T, c1) : T(c1)
+                img[row+py-by, col+px+bx] = T <: Integer ? round(T, c1) : T(c1)
             end
         else
             for row = 1+cliprowlo : h-cliprowhi, col = 1+clipcollo : w-clipcolhi
@@ -111,7 +119,7 @@ function renderstring!(
                 w1 = bitmaps[istr][col, row] / bitmapmax
                 c1 = w1 * fcolor
                 c0 = (1.0 - w1) * bcolor
-                img[row + py - by, col + px - bx] = T <: Integer ? round(T, c1 + c0) : T(c1 + c0)
+                img[row + py - by, col + px + bx] = T <: Integer ? round(T, c1 + c0) : T(c1 + c0)
             end
         end
         px += metrics[istr].advance[1]
