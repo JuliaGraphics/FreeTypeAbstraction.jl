@@ -2,7 +2,7 @@ iter_or_array(x) = repeated(x)
 iter_or_array(x::Repeated) = x
 iter_or_array(x::AbstractArray) = x
 # We treat staticarrays as scalar
-iter_or_array(x::StaticArray) = repeated(x)
+iter_or_array(x::Union{Mat, StaticVector}) = repeated(x)
 
 
 function metrics_bb(char::Char, font::FTFont, pixel_size)
