@@ -168,6 +168,9 @@ renderstring!(
     valign = :vcenter,
 )
 renderstring!(zeros(UInt8, 20, 100), "helgo", face, 10, 25, 80)
+let fcolor = map(x->RGB{Float32}(x...), [(.1, .2, .3), (.5, .2, .25), (.6, .3, .1), (.2, .5, .6), (.7, .1, .9)])
+    renderstring!(zeros(RGB{Float32}, 20, 100), "helgo", face, 10, 25, 80; fcolor = fcolor)
+end
 
 # Find fonts
 # these fonts should be available on all platforms:
