@@ -43,7 +43,7 @@ Render `str` into `img` using the font `face` of size `pixelsize` at coordinates
 * `valign`: :vtop, :vcenter, :vbaseline, or :vbottom
 """
 function renderstring!(
-        img::AbstractMatrix{T}, str::String, face::FTFont, pixelsize::Union{Int, Tuple{Int, Int}}, y0, x0;
+        img::AbstractMatrix{T}, str::Union{AbstractVector{Char},String}, face::FTFont, pixelsize::Union{Int, Tuple{Int, Int}}, y0, x0;
         fcolor::Union{AbstractVector{T},T} = one_or_typemax(T), bcolor::Union{T,Nothing} = zero(T),
         halign::Symbol = :hleft, valign::Symbol = :vbaseline
     ) where T<:Union{Real,Colorant}
@@ -52,6 +52,8 @@ function renderstring!(
         @warn "using tuple for pixelsize is deprecated, please use one integer"
         pixelsize = pixelsize[1]
     end
+
+    str = str isa AbstractVector ? String(str) : str
 
     set_pixelsize(face, pixelsize)
 
@@ -103,11 +105,7 @@ function renderstring!(
             px += kx
         end
 
-        fcol = if fcolor isa AbstractVector
-            fcolor[istr]
-        else
-            fcolor
-        end
+        fcol = fcolor isa AbstractVector ? fcolor[istr] : fcolor
 
         # trim parts of glyph images that are outside the destination
         cliprowlo, cliprowhi = max(0, -(py-by)), max(0, py - by + h - imgh)
