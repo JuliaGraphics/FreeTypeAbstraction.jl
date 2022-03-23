@@ -168,6 +168,10 @@ renderstring!(
     valign = :vcenter,
 )
 renderstring!(zeros(UInt8, 20, 100), "helgo", face, 10, 25, 80)
+for str in ("helgo", collect("helgo"))
+    fcolor = [RGB{Float32}(rand(3)...) for _ ∈ 1:length(str)]
+    renderstring!(zeros(RGB{Float32}, 20, 100), str, face, 10, 0, 0; fcolor = fcolor)
+end
 
 # Find fonts
 # these fonts should be available on all platforms:
