@@ -38,13 +38,16 @@ Render `str` into `img` using the font `face` of size `pixelsize` at coordinates
 # Arguments
 * `y0,x0`: origin is in upper left with positive `y` going down
 * `fcolor`: foreground color; AbstractVector{T}, typemax(T) for T<:Integer, otherwise one(T)
-* `bcolor`: background color; set to `nothing` for transparent
+* `gcolor`: background color; AbstractVector{T}, typemax(T) for T<:Integer, otherwise one(T)
+* `bcolor`: canvas background color; set to `nothing` for transparent
 * `halign`: :hleft, :hcenter, or :hright
 * `valign`: :vtop, :vcenter, :vbaseline, or :vbottom
 """
 function renderstring!(
         img::AbstractMatrix{T}, str::Union{AbstractVector{Char},String}, face::FTFont, pixelsize::Union{Int, Tuple{Int, Int}}, y0, x0;
-        fcolor::Union{AbstractVector{T},T} = one_or_typemax(T), bcolor::Union{T,Nothing} = zero(T),
+        fcolor::Union{AbstractVector{T},T} = one_or_typemax(T),
+        gcolor::Union{AbstractVector{T},T,Nothing} = nothing,
+        bcolor::Union{T,Nothing} = zero(T),
         halign::Symbol = :hleft, valign::Symbol = :vbaseline
     ) where T<:Union{Real,Colorant}
 
@@ -106,23 +109,28 @@ function renderstring!(
         end
 
         fcol = fcolor isa AbstractVector ? fcolor[istr] : fcolor
+        gcol = gcolor isa AbstractVector ? gcolor[istr] : gcolor
 
         # trim parts of glyph images that are outside the destination
         cliprowlo, cliprowhi = max(0, -(py-by)), max(0, py - by + h - imgh)
         clipcollo, clipcolhi = max(0, -bx-px),   max(0, px + bx + w - imgw)
 
-        if bcolor === nothing
+        if gcol === nothing
             for row = 1+cliprowlo : h-cliprowhi, col = 1+clipcollo : w-clipcolhi
-                bitmaps[istr][col,row]==0 && continue
+                bitmaps[istr][col,row] == 0 && continue
                 c1 = bitmaps[istr][col,row] / bitmapmax * fcol
                 img[row+py-by, col+px+bx] = T <: Integer ? round(T, c1) : T(c1)
             end
         else
+            img[
+                clamp(py-ymax+1, 1, imgh) : clamp(py-ymin-1, 1, imgh),
+                clamp(px-1, 1, imgw) : clamp(px+sumadvancex-1, 1, imgw)
+            ] .= gcol
             for row = 1+cliprowlo : h-cliprowhi, col = 1+clipcollo : w-clipcolhi
                 bitmaps[istr][col, row] == 0 && continue
                 w1 = bitmaps[istr][col, row] / bitmapmax
                 c1 = w1 * fcol
-                c0 = (1.0 - w1) * bcolor
+                c0 = (1.0 - w1) * gcol
                 img[row + py - by, col + px + bx] = T <: Integer ? round(T, c1 + c0) : T(c1 + c0)
             end
         end
