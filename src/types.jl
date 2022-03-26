@@ -1,8 +1,4 @@
-function check_error(err, error_msg)
-    if err != 0
-        error(error_msg * " with error: $(err)")
-    end
-end
+check_error(err, error_msg) = err == 0 || error(error_msg * " with error: $(err)")
 
 const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
@@ -35,76 +31,73 @@ struct FontExtent{T}
     scale::Vec{2, T}
 end
 
-hadvance(ext::FontExtent) = ext.advance[1]
-inkwidth(ext::FontExtent) = ext.scale[1]
-inkheight(ext::FontExtent) = ext.scale[2]
-hbearing_ori_to_left(ext::FontExtent) = ext.horizontal_bearing[1]
-hbearing_ori_to_top(ext::FontExtent) = ext.horizontal_bearing[2]
-leftinkbound(ext::FontExtent) = hbearing_ori_to_left(ext)
-rightinkbound(ext::FontExtent) = leftinkbound(ext) + inkwidth(ext)
-bottominkbound(ext::FontExtent) = hbearing_ori_to_top(ext) - inkheight(ext)
-topinkbound(ext::FontExtent) = hbearing_ori_to_top(ext)
+@inline hadvance(ext::FontExtent) = ext.advance[1]
+@inline vadvance(ext::FontExtent) = ext.advance[2]
+@inline inkwidth(ext::FontExtent) = ext.scale[1]
+@inline inkheight(ext::FontExtent) = ext.scale[2]
+@inline hbearing_ori_to_left(ext::FontExtent) = ext.horizontal_bearing[1]
+@inline hbearing_ori_to_top(ext::FontExtent) = ext.horizontal_bearing[2]
+@inline leftinkbound(ext::FontExtent) = hbearing_ori_to_left(ext)
+@inline rightinkbound(ext::FontExtent) = leftinkbound(ext) + inkwidth(ext)
+@inline bottominkbound(ext::FontExtent) = hbearing_ori_to_top(ext) - inkheight(ext)
+@inline topinkbound(ext::FontExtent) = hbearing_ori_to_top(ext)
 
 BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
 BroadcastStyle(::Style{FontExtent}, x) = Style{FontExtent}()
 BroadcastStyle(x, ::Style{FontExtent}) = Style{FontExtent}()
 
-function broadcasted(op::Function, f::FontExtent, scaling::StaticVector)
-    return FontExtent(
+broadcasted(op::Function, f::FontExtent, scaling::StaticVector) =
+FontExtent(
         op.(f.vertical_bearing, scaling[1]),
         op.(f.horizontal_bearing, scaling[2]),
         op.(f.advance, scaling),
         op.(f.scale, scaling),
     )
-end
 
-function broadcasted(op::Function, f::FontExtent)
-    return FontExtent(
+broadcasted(op::Function, f::FontExtent) =
+    FontExtent(
         op.(f.vertical_bearing),
         op.(f.horizontal_bearing),
         op.(f.advance),
         op.(f.scale),
     )
-end
 
-function broadcasted(op::Function, ::Type{T}, f::FontExtent) where T
-    return FontExtent(
+broadcasted(op::Function, ::Type{T}, f::FontExtent) where T =
+    FontExtent(
         map(x-> op(T, x), f.vertical_bearing),
         map(x-> op(T, x), f.horizontal_bearing),
         map(x-> op(T, x), f.advance),
         map(x-> op(T, x), f.scale),
     )
-end
 
-function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::T = 64.0) where T <: AbstractFloat
-    return FontExtent(
+FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::T = 64.0) where T <: AbstractFloat =
+    FontExtent(
         Vec{2, T}(fontmetric.vertBearingX, fontmetric.vertBearingY) ./ scale,
         Vec{2, T}(fontmetric.horiBearingX, fontmetric.horiBearingY) ./ scale,
         Vec{2, T}(fontmetric.horiAdvance, fontmetric.vertAdvance) ./ scale,
         Vec{2, T}(fontmetric.width, fontmetric.height) ./ scale
     )
-end
 
-function ==(x::FontExtent, y::FontExtent)
-    return (x.vertical_bearing == y.vertical_bearing &&
-            x.horizontal_bearing == y.horizontal_bearing &&
-            x.advance == y.advance &&
-            x.scale == y.scale)
-end
+==(x::FontExtent, y::FontExtent) = (
+    x.vertical_bearing == y.vertical_bearing &&
+    x.horizontal_bearing == y.horizontal_bearing &&
+    x.advance == y.advance &&
+    x.scale == y.scale
+)
 
-function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer)
-    return FontExtent(
+FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer) =
+    FontExtent(
         div.(Vec{2, Int}(fontmetric.vertBearingX, fontmetric.vertBearingY), scale),
         div.(Vec{2, Int}(fontmetric.horiBearingX, fontmetric.horiBearingY), scale),
         div.(Vec{2, Int}(fontmetric.horiAdvance, fontmetric.vertAdvance), scale),
         div.(Vec{2, Int}(fontmetric.width, fontmetric.height), scale)
     )
-end
 
-function bearing(extent::FontExtent)
-    return Vec2f(extent.horizontal_bearing[1],
-                  -(extent.scale[2] - extent.horizontal_bearing[2]))
-end
+bearing(extent::FontExtent{T}) where T = 
+    Vec2{T}(
+        +extent.horizontal_bearing[1],
+        -extent.horizontal_bearing[2],
+    )
 
 function safe_free(face)
     ptr = getfield(face, :ft_ptr)
@@ -113,10 +106,7 @@ function safe_free(face)
     end
 end
 
-function boundingbox(extent::FontExtent)
-    mini = bearing(extent)
-    return Rect2(mini, Vec2f(extent.scale))
-end
+boundingbox(extent::FontExtent{T}) where T = Rect2(bearing(extent), Vec2{T}(extent.scale))
 
 mutable struct FTFont
     ft_ptr::FreeType.FT_Face
@@ -133,22 +123,14 @@ end
 use_cache(face::FTFont) = getfield(face, :use_cache)
 get_cache(face::FTFont) = getfield(face, :extent_cache)
 
-function FTFont(path::String)
-    return FTFont(newface(path))
-end
+FTFont(path::String) = FTFont(newface(path))
 
 # C interop
-function Base.cconvert(::Type{FreeType.FT_Face}, font::FTFont)
-    return font
-end
+Base.cconvert(::Type{FreeType.FT_Face}, font::FTFont) = font
 
-function Base.unsafe_convert(::Type{FreeType.FT_Face}, font::FTFont)
-    return getfield(font, :ft_ptr)
-end
+Base.unsafe_convert(::Type{FreeType.FT_Face}, font::FTFont) = getfield(font, :ft_ptr)
 
-function Base.propertynames(font::FTFont)
-    return fieldnames(FreeType.FT_FaceRec)
-end
+Base.propertynames(font::FTFont) = fieldnames(FreeType.FT_FaceRec)
 
 function Base.getproperty(font::FTFont, fieldname::Symbol)
     fontrect = unsafe_load(getfield(font, :ft_ptr))
@@ -161,9 +143,8 @@ function Base.getproperty(font::FTFont, fieldname::Symbol)
     end
 end
 
-function Base.show(io::IO, font::FTFont)
+Base.show(io::IO, font::FTFont) =
     print(io, "FTFont (family = $(font.family_name), style = $(font.style_name))")
-end
 
 # Allow broadcasting over fonts
 Base.Broadcast.broadcastable(ft::FTFont) = Ref(ft)

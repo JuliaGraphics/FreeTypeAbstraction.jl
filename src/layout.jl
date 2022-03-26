@@ -7,8 +7,7 @@ iter_or_array(x::StaticArray) = repeated(x)
 
 function metrics_bb(char::Char, font::FTFont, pixel_size)
     extent = get_extent(font, char) .* Vec2f(pixel_size)
-    mini = bearing(extent)
-    return Rect2(mini, Vec2f(extent.scale)), extent
+    return boundingbox(extent), extent
 end
 
 function boundingbox(char::Char, font::FTFont, pixel_size)
@@ -59,9 +58,7 @@ function glyph_rects(line::AbstractString, fonts, scales)
     return rects
 end
 
-function boundingbox(line::AbstractString, fonts, scales)
-    return reduce(union, glyph_rects(line, fonts, scales))
-end
+boundingbox(line::AbstractString, fonts, scales) = reduce(union, glyph_rects(line, fonts, scales))
 
 function inkboundingbox(ext::FontExtent)
     l = leftinkbound(ext)
