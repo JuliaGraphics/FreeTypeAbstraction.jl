@@ -7,8 +7,7 @@ iter_or_array(x::Union{Mat, StaticVector}) = repeated(x)
 
 function metrics_bb(char::Char, font::FTFont, pixel_size)
     extent = get_extent(font, char) .* Vec2f(pixel_size)
-    mini = bearing(extent)
-    return Rect2(mini, Vec2f(extent.scale)), extent
+    return boundingbox(extent), extent
 end
 
 function boundingbox(char::Char, font::FTFont, pixel_size)

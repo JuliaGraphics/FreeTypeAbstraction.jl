@@ -4,12 +4,21 @@ function loadchar(face::FTFont, c::Char)
     check_error(err, "Could not load char to render.")
 end
 
-function renderface(face::FTFont, c::Char, pixelsize::Integer)
+function loadglyph(face::FTFont, c::Char, pixelsize::Integer)
     set_pixelsize(face, pixelsize)
     loadchar(face, c)
     glyph = unsafe_load(face.glyph)
     @assert glyph.format == FreeType.FT_GLYPH_FORMAT_BITMAP
+    return glyph
+end
+
+function renderface(face::FTFont, c::Char, pixelsize::Integer)
+    glyph = loadglyph(face, c, pixelsize)
     return glyphbitmap(glyph.bitmap), FontExtent(glyph.metrics)
+end
+
+function extents(face::FTFont, c::Char, pixelsize::Integer)
+    return FontExtent(loadglyph(face, c, pixelsize).metrics)
 end
 
 function glyphbitmap(bitmap::FreeType.FT_Bitmap)
@@ -27,102 +36,172 @@ function glyphbitmap(bitmap::FreeType.FT_Bitmap)
     return bmp
 end
 
-one_or_typemax(::Type{T}) where {T<:Union{Real,Colorant}} = T<:Integer ? typemax(T) : oneunit(T)
+function one_or_typemax(::Type{T}) where {T<:Union{Real,Colorant}}
+    return T<:Integer ? typemax(T) : oneunit(T)
+end
 
 """
     renderstring!(img::AbstractMatrix, str::String, face, pixelsize, y0, x0;
     fcolor=one_or_typemax(T), bcolor=zero(T), halign=:hleft, valign=:vbaseline) -> Matrix
 
 Render `str` into `img` using the font `face` of size `pixelsize` at coordinates `y0,x0`.
+Uses the conventions of freetype.org/freetype2/docs/glyphs/glyphs-3.html
 
 # Arguments
 * `y0,x0`: origin is in upper left with positive `y` going down
-* `fcolor`: foreground color; typemax(T) for T<:Integer, otherwise one(T)
-* `bcolor`: background color; set to `nothing` for transparent
+* `fcolor`: foreground color; AbstractVector{T}, typemax(T) for T<:Integer, otherwise one(T)
+* `gcolor`: background color; AbstractVector{T}, typemax(T) for T<:Integer, otherwise one(T)
+* `bcolor`: canvas background color; set to `nothing` for transparent
 * `halign`: :hleft, :hcenter, or :hright
-* `valign`: :vtop, :vcenter, :vbaseline, or :vbottom
+* `valign`: :vtop, :vcenter, :vbaseline, or :vbttom
+* `bbox_glyph`: glyph bounding box color (debugging)
+* `bbox`: bounding box color (debugging)
+* `gstr`: background string or array of chars (for background sizing)
+* `incx`: extra x spacing
 """
 function renderstring!(
-        img::AbstractMatrix{T}, str::String, face::FTFont, pixelsize::Union{Int, Tuple{Int, Int}}, y0, x0;
-        fcolor::T = one_or_typemax(T), bcolor::Union{T,Nothing} = zero(T),
-        halign::Symbol = :hleft, valign::Symbol = :vbaseline
+        img::AbstractMatrix{T}, fstr::Union{AbstractVector{Char},String},
+        face::FTFont, pixelsize::Union{Int, Tuple{Int, Int}}, y0, x0;
+        fcolor::Union{AbstractVector{T},T} = one_or_typemax(T),
+        gcolor::Union{AbstractVector{T},T,Nothing} = nothing,
+        bcolor::Union{T,Nothing} = zero(T),
+        halign::Symbol = :hleft,
+        valign::Symbol = :vbaseline,
+        bbox_glyph::Union{T,Nothing} = nothing,
+        bbox::Union{T,Nothing} = nothing,
+        gstr::Union{AbstractVector{Char},String,Nothing} = nothing,
+        off_bg::Int = 0,
+        incx::Int = 0,
     ) where T<:Union{Real,Colorant}
 
     if pixelsize isa Tuple
         @warn "using tuple for pixelsize is deprecated, please use one integer"
         pixelsize = pixelsize[1]
     end
-
     set_pixelsize(face, pixelsize)
 
-    bitmaps = Vector{Matrix{UInt8}}(undef, lastindex(str))
-    metrics = Vector{FontExtent{Int}}(undef, lastindex(str))
-    # ymin and ymax w.r.t the baseline
-    ymin = ymax = sumadvancex = 0
-
-    for (istr, char) = enumerate(str)
-        bitmap, metric_float = renderface(face, char, pixelsize)
-        metric = round.(Int, metric_float)
-        bitmaps[istr] = bitmap
-        metrics[istr] = metric
-
-        # scale of glyph (size of bitmap)
-        w, h = metric.scale
-        # offset between glyph origin and bitmap top left corner
-        bx, by = metric.horizontal_bearing
-        ymin = min(ymin, by - h)
-        ymax = max(ymax, by)
-        sumadvancex += metric.advance[1]
+    fstr = fstr isa AbstractVector ? fstr : collect(fstr)
+    if gstr !== nothing
+        gstr = gstr isa AbstractVector ? gstr : collect(gstr)
     end
 
-    px = x0 - (halign == :hright ? sumadvancex : halign == :hcenter ? sumadvancex >> 1 : 0)
+    len = length(fstr)
+    bitmaps = Vector{Matrix{UInt8}}(undef, len)
+    metrics = Vector{FontExtent{Int}}(undef, len)
+
+    y_min = y_max = sum_advance_x = 0  # y_min and y_max are w.r.t the baseline
+    for (i, char) in enumerate(fstr)
+        bitmap, metricf = renderface(face, char, pixelsize)
+        metric = round.(Int, metricf)
+        bitmaps[i] = bitmap
+        metrics[i] = metric
+
+        y_min = min(y_min, bottominkbound(metric))
+        y_max = max(y_max, topinkbound(metric))
+        sum_advance_x += hadvance(metric)
+    end
+
+    bitmap_max = bitmaps |> first |> eltype |> typemax
+    imgh, imgw = size(img)
+
+    # initial pen position
+    px = x0 - (halign == :hright ? sum_advance_x : halign == :hcenter ? sum_advance_x >> 1 : 0)
     py = y0 + (
-        valign == :vtop ? ymax : valign == :vbottom ? ymin :
-        valign == :vcenter ? (ymax - ymin) >> 1 + ymin : 0
+        valign == :vtop ? y_max : valign == :vbottom ? y_min :
+        valign == :vcenter ? (y_max - y_min) >> 1 + y_min : 0
     )
 
-    bitmapmax = typemax(eltype(bitmaps[1]))
-
-    imgh, imgw = size(img)
     if bcolor !== nothing
         img[
-            clamp(py-ymax+1, 1, imgh) : clamp(py-ymin-1, 1, imgh),
-            clamp(px-1, 1, imgw) : clamp(px+sumadvancex-1, 1, imgw)
+            clamp(py - y_max, 1, imgh) : clamp(py - y_min, 1, imgh),
+            clamp(px, 1, imgw) : clamp(px + sum_advance_x, 1, imgw)
         ] .= bcolor
     end
 
     local prev_char::Char
-    for (istr, char) = enumerate(str)
-        w, h = metrics[istr].scale
-        bx, by = metrics[istr].horizontal_bearing
+    for (i, char) in enumerate(fstr)
+        bitmap = bitmaps[i]
+        metric = metrics[i]
+        bx, by = metric.horizontal_bearing
+        ax, ay = metric.advance
+        sx, sy = metric.scale
 
-        if istr == 1
+        if i == 1
             prev_char = char
         else
-            kx, ky = map(x-> round(Int, x), kerning(prev_char, char, face))
+            kx, _ = map(x-> round(Int, x), kerning(prev_char, char, face))
             px += kx
         end
 
-        # trim parts of glyph images that are outside the destination
-        cliprowlo, cliprowhi = max(0, -(py-by)), max(0, py - by + h - imgh)
-        clipcollo, clipcolhi = max(0, -bx-px),   max(0, px + bx + w - imgw)
+        # glyph origin
+        oy = py - by
+        ox = px + bx
 
-        if bcolor === nothing
-            for row = 1+cliprowlo : h-cliprowhi, col = 1+clipcollo : w-clipcolhi
-                bitmaps[istr][col,row]==0 && continue
-                c1 = bitmaps[istr][col,row] / bitmapmax * fcolor
-                img[row+py-by, col+px+bx] = T <: Integer ? round(T, c1) : T(c1)
+        fcol = fcolor isa AbstractVector ? fcolor[i] : fcolor
+        gcol = gcolor isa AbstractVector ? gcolor[i] : gcolor
+
+        # trim parts of glyph images that are outside the destination
+        row_lo, row_hi = 1 + max(0, -oy), sy - max(0, oy + sy - imgh)
+        col_lo, col_hi = 1 + max(0, -ox), sx - max(0, ox + sx - imgw)
+
+        if gcol === nothing
+            for r in row_lo:row_hi, c in col_lo:col_hi
+                (bm = bitmap[c, r]) == 0 && continue
+                color = bm / bitmap_max * fcol
+                img[oy + r, ox + c] = T <: Integer ? round(T, color) : T(color)
             end
         else
-            for row = 1+cliprowlo : h-cliprowhi, col = 1+clipcollo : w-clipcolhi
-                bitmaps[istr][col, row] == 0 && continue
-                w1 = bitmaps[istr][col, row] / bitmapmax
-                c1 = w1 * fcolor
-                c0 = (1.0 - w1) * bcolor
-                img[row + py - by, col + px + bx] = T <: Integer ? round(T, c1 + c0) : T(c1 + c0)
+            if gstr !== nothing
+                gmetric = round.(Int, extents(face, gstr[i], pixelsize))
+                y_min = bottominkbound(gmetric)
+                y_max = topinkbound(gmetric)
+            end
+
+            # fill background
+            by1, by2 = py - y_max, py - y_min
+            bx1, bx2 = px, px + ax
+            r1, r2 = clamp(by1, 1, imgh), clamp(by2, 1, imgh)
+            c1, c2 = clamp(bx1, 1, imgw), clamp(bx2, 1, imgw)
+            for r in r1 + off_bg:r2 - off_bg, c in c1 + off_bg:c2 - off_bg
+                img[r, c] = gcol
+            end
+
+            # render character by drawing the corresponding glyph
+            for r in row_lo:row_hi, c in col_lo:col_hi
+                (bm = bitmap[c, r]) == 0 && continue
+                w1 = bm / bitmap_max
+                color0 = w1 * fcol
+                color1 = (1.0 - w1) * gcol
+                img[oy + r, ox + c] = T <: Integer ? round(T, color0 + color1) : T(color0 + color1)
+            end
+
+            # draw background bounding box
+            if bbox !== nothing && r2 > r1 && c2 > c1
+                img[r1, c1:c2] .= bbox
+                img[r2, c1:c2] .= bbox
+                img[r1:r2, c1] .= bbox
+                img[r1:r2, c2] .= bbox
             end
         end
-        px += metrics[istr].advance[1]
+
+        # draw glyph bounding box
+        if bbox_glyph !== nothing
+            # rect = boundingbox(metric)
+            # (mc, mr), (Mc, Mr) = extrema(rect)
+            # r1, r2 = clamp(py + mr, 1, imgh), clamp(py + Mr, 1, imgh)
+            # c1, c2 = clamp(px + mc, 1, imgw), clamp(px + Mc, 1, imgw)
+            # ^^^ should be equivalent to vvv: see JuliaGraphics/FreeTypeAbstraction.jl/pull/71
+            r1, r2 = clamp(oy + row_lo, 1, imgh), clamp(oy + row_hi, 1, imgh)
+            c1, c2 = clamp(ox + col_lo, 1, imgw), clamp(ox + col_hi, 1, imgw)
+            if r2 > r1 && c2 > c1
+                img[r1, c1:c2] .= bbox_glyph
+                img[r2, c1:c2] .= bbox_glyph
+                img[r1:r2, c1] .= bbox_glyph
+                img[r1:r2, c2] .= bbox_glyph
+            end
+        end
+
+        px += ax + incx
     end
     return img
 end
