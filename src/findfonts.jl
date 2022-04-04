@@ -1,16 +1,20 @@
 if Sys.isapple()
-    _font_paths() = [
-        "/Library/Fonts", # Additional fonts that can be used by all users. This is generally where fonts go if they are to be used by other applications.
-        joinpath(homedir(), "Library/Fonts"), # Fonts specific to each user.
-        "/Network/Library/Fonts", # Fonts shared for users on a network
-        "/System/Library/Fonts", # System specific fonts
-        "/System/Library/Fonts/Supplemental", # new location since Catalina
-    ]
+    function _font_paths()
+        return [
+            "/Library/Fonts", # Additional fonts that can be used by all users. This is generally where fonts go if they are to be used by other applications.
+            joinpath(homedir(), "Library/Fonts"), # Fonts specific to each user.
+            "/Network/Library/Fonts", # Fonts shared for users on a network
+            "/System/Library/Fonts", # System specific fonts
+            "/System/Library/Fonts/Supplemental", # new location since Catalina
+        ]
+    end
 elseif Sys.iswindows()
-    _font_paths() = [
-        joinpath(get(ENV, "SYSTEMROOT", "C:\\Windows"), "Fonts"),
-        joinpath(homedir(), "AppData", "Local", "Microsoft", "Windows", "Fonts"),
-    ]
+    function _font_paths()
+        return [
+            joinpath(get(ENV, "SYSTEMROOT", "C:\\Windows"), "Fonts"),
+            joinpath(homedir(), "AppData", "Local", "Microsoft", "Windows", "Fonts"),
+        ]
+    end
 else
     function add_recursive(result, path)
         for p in readdir(path)
@@ -29,7 +33,7 @@ else
                 add_recursive(result, p)
             end
         end
-        result
+        return result
     end
 end
 
@@ -99,7 +103,7 @@ function match_font(face::FTFont, searchparts)::Tuple{Int, Int, Bool, Int}
 
     style_score = sum(length(part) for part in remaining_parts if occursin(part, sname))
 
-    (family_score, style_score, is_regular_style, fontlength_penalty)
+    return (family_score, style_score, is_regular_style, fontlength_penalty)
 end
 
 function try_load(fpath)
@@ -160,5 +164,5 @@ function findfont(
         end
     end
 
-    best_font
+    return best_font
 end

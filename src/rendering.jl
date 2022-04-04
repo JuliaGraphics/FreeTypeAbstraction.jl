@@ -9,16 +9,17 @@ function loadglyph(face::FTFont, c::Char, pixelsize::Integer)
     loadchar(face, c)
     glyph = unsafe_load(face.glyph)
     @assert glyph.format == FreeType.FT_GLYPH_FORMAT_BITMAP
-    glyph
+    return glyph
 end
 
 function renderface(face::FTFont, c::Char, pixelsize::Integer)
     glyph = loadglyph(face, c, pixelsize)
-    glyphbitmap(glyph.bitmap), FontExtent(glyph.metrics)
+    return glyphbitmap(glyph.bitmap), FontExtent(glyph.metrics)
 end
 
-extents(face::FTFont, c::Char, pixelsize::Integer) =
-    FontExtent(loadglyph(face, c, pixelsize).metrics)
+function extents(face::FTFont, c::Char, pixelsize::Integer)
+    return FontExtent(loadglyph(face, c, pixelsize).metrics)
+end
 
 function glyphbitmap(bitmap::FreeType.FT_Bitmap)
     @assert bitmap.pixel_mode == FreeType.FT_PIXEL_MODE_GRAY
@@ -32,7 +33,7 @@ function glyphbitmap(bitmap::FreeType.FT_Bitmap)
         bmp[:, r] = src
         row += bitmap.pitch
     end
-    bmp
+    return bmp
 end
 
 one_or_typemax(::Type{T}) where {T<:Union{Real,Colorant}} = T<:Integer ? typemax(T) : oneunit(T)

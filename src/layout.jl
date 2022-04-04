@@ -58,7 +58,9 @@ function glyph_rects(line::AbstractString, fonts, scales)
     return rects
 end
 
-boundingbox(line::AbstractString, fonts, scales) = reduce(union, glyph_rects(line, fonts, scales))
+function boundingbox(line::AbstractString, fonts, scales)
+    return reduce(union, glyph_rects(line, fonts, scales))
+end
 
 function inkboundingbox(ext::FontExtent)
     l = leftinkbound(ext)
