@@ -1,19 +1,18 @@
-function check_error(err, error_msg)
-    if err != 0
-        error(error_msg * " with error: $(err)")
-    end
-end
+check_error(err, error_msg) = err == 0 || error("$error_msg with error: $err")
 
 const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
 function ft_init()
-    FREE_FONT_LIBRARY[1] != C_NULL && error("Freetype already initalized. init() called two times?")
-    err = FT_Init_FreeType(FREE_FONT_LIBRARY)
-    return err == 0
+    if FREE_FONT_LIBRARY[1] != C_NULL
+        error("Freetype already initalized. init() called two times?")
+    end
+    return FT_Init_FreeType(FREE_FONT_LIBRARY) == 0
 end
 
 function ft_done()
-    FREE_FONT_LIBRARY[1] == C_NULL && error("Library == CNULL. FreeTypeAbstraction.done() called before init(), or done called two times?")
+    if FREE_FONT_LIBRARY[1] == C_NULL
+        error("Library == CNULL. FreeTypeAbstraction.done() called before init(), or done called two times?")
+    end
     err = FT_Done_FreeType(FREE_FONT_LIBRARY[1])
     FREE_FONT_LIBRARY[1] = C_NULL
     return err == 0
@@ -36,6 +35,7 @@ struct FontExtent{T}
 end
 
 hadvance(ext::FontExtent) = ext.advance[1]
+vadvance(ext::FontExtent) = ext.advance[2]
 inkwidth(ext::FontExtent) = ext.scale[1]
 inkheight(ext::FontExtent) = ext.scale[2]
 hbearing_ori_to_left(ext::FontExtent) = ext.horizontal_bearing[1]
@@ -86,10 +86,12 @@ function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::T = 64.0) wher
 end
 
 function ==(x::FontExtent, y::FontExtent)
-    return (x.vertical_bearing == y.vertical_bearing &&
-            x.horizontal_bearing == y.horizontal_bearing &&
-            x.advance == y.advance &&
-            x.scale == y.scale)
+    return (
+        x.vertical_bearing == y.vertical_bearing &&
+        x.horizontal_bearing == y.horizontal_bearing &&
+        x.advance == y.advance &&
+        x.scale == y.scale
+    )
 end
 
 function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer)
@@ -101,9 +103,13 @@ function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer)
     )
 end
 
-function bearing(extent::FontExtent)
-    return Vec2f(extent.horizontal_bearing[1],
-                  -(extent.scale[2] - extent.horizontal_bearing[2]))
+function bearing(extent::FontExtent{T}) where T
+    # origin to SW corner of the horizontal metric
+    # with the conventions of freetype.org/freetype2/docs/glyphs/glyphs-3.html
+    return Vec2{T}(
+        hbearing_ori_to_left(extent),
+        hbearing_ori_to_top(extent) - inkheight(extent),
+    )
 end
 
 function safe_free(face)
@@ -113,9 +119,8 @@ function safe_free(face)
     end
 end
 
-function boundingbox(extent::FontExtent)
-    mini = bearing(extent)
-    return Rect2(mini, Vec2f(extent.scale))
+function boundingbox(extent::FontExtent{T}) where T
+    return Rect2(bearing(extent), Vec2{T}(extent.scale))
 end
 
 mutable struct FTFont
@@ -133,22 +138,16 @@ end
 use_cache(face::FTFont) = getfield(face, :use_cache)
 get_cache(face::FTFont) = getfield(face, :extent_cache)
 
-function FTFont(path::String)
-    return FTFont(newface(path))
-end
+FTFont(path::String) = FTFont(newface(path))
 
 # C interop
-function Base.cconvert(::Type{FreeType.FT_Face}, font::FTFont)
-    return font
-end
+Base.cconvert(::Type{FreeType.FT_Face}, font::FTFont) = font
 
 function Base.unsafe_convert(::Type{FreeType.FT_Face}, font::FTFont)
     return getfield(font, :ft_ptr)
 end
 
-function Base.propertynames(font::FTFont)
-    return fieldnames(FreeType.FT_FaceRec)
-end
+Base.propertynames(font::FTFont) = fieldnames(FreeType.FT_FaceRec)
 
 function Base.getproperty(font::FTFont, fieldname::Symbol)
     fontrect = unsafe_load(getfield(font, :ft_ptr))
