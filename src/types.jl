@@ -1,15 +1,18 @@
-check_error(err, error_msg) = err == 0 || error(error_msg * " with error: $(err)")
+check_error(err, error_msg) = err == 0 || error("$error_msg with error: $err")
 
 const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
 function ft_init()
-    FREE_FONT_LIBRARY[1] != C_NULL && error("Freetype already initalized. init() called two times?")
-    err = FT_Init_FreeType(FREE_FONT_LIBRARY)
-    return err == 0
+    if FREE_FONT_LIBRARY[1] != C_NULL
+        error("Freetype already initalized. init() called two times?")
+    end
+    return FT_Init_FreeType(FREE_FONT_LIBRARY) == 0
 end
 
 function ft_done()
-    FREE_FONT_LIBRARY[1] == C_NULL && error("Library == CNULL. FreeTypeAbstraction.done() called before init(), or done called two times?")
+    if FREE_FONT_LIBRARY[1] == C_NULL
+        error("Library == CNULL. FreeTypeAbstraction.done() called before init(), or done called two times?")
+    end
     err = FT_Done_FreeType(FREE_FONT_LIBRARY[1])
     FREE_FONT_LIBRARY[1] = C_NULL
     return err == 0
@@ -114,7 +117,9 @@ function safe_free(face)
     end
 end
 
-boundingbox(extent::FontExtent{T}) where T = Rect2(bearing(extent), Vec2{T}(extent.scale))
+function boundingbox(extent::FontExtent{T}) where T
+    return Rect2(bearing(extent), Vec2{T}(extent.scale))
+end
 
 mutable struct FTFont
     ft_ptr::FreeType.FT_Face
@@ -136,7 +141,9 @@ FTFont(path::String) = FTFont(newface(path))
 # C interop
 Base.cconvert(::Type{FreeType.FT_Face}, font::FTFont) = font
 
-Base.unsafe_convert(::Type{FreeType.FT_Face}, font::FTFont) = getfield(font, :ft_ptr)
+function Base.unsafe_convert(::Type{FreeType.FT_Face}, font::FTFont)
+    return getfield(font, :ft_ptr)
+end
 
 Base.propertynames(font::FTFont) = fieldnames(FreeType.FT_FaceRec)
 

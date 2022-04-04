@@ -36,7 +36,9 @@ function glyphbitmap(bitmap::FreeType.FT_Bitmap)
     return bmp
 end
 
-one_or_typemax(::Type{T}) where {T<:Union{Real,Colorant}} = T<:Integer ? typemax(T) : oneunit(T)
+function one_or_typemax(::Type{T}) where {T<:Union{Real,Colorant}}
+    return T<:Integer ? typemax(T) : oneunit(T)
+end
 
 """
     renderstring!(img::AbstractMatrix, str::String, face, pixelsize, y0, x0;

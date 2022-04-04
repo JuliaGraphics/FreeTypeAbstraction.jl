@@ -27,7 +27,12 @@ else
     end
     function _font_paths()
         result = String[]
-        for p in ("/usr/share/fonts", joinpath(homedir(), ".fonts"), joinpath(homedir(), ".local/share/fonts"), "/usr/local/share/fonts",)
+        for p in (
+            "/usr/share/fonts",
+            joinpath(homedir(), ".fonts"),
+            joinpath(homedir(), ".local/share/fonts"),
+            "/usr/local/share/fonts"
+        )
             if isdir(p)
                 push!(result, p)
                 add_recursive(result, p)
