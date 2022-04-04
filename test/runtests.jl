@@ -16,7 +16,7 @@ face = FA.findfont("hack")
     @test FA.descender(face) isa Real
 
     bb = FA.boundingbox("asdasd", face, 64)
-    @test round.(Int, minimum(bb)) == Vec(4, -49)
+    @test round.(Int, minimum(bb)) == Vec(4, -1)
     @test round.(Int, widths(bb)) == Vec2(221, 50)
 
     FA.set_pixelsize(face, 64) # should be the default

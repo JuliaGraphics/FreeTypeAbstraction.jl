@@ -104,9 +104,11 @@ function FontExtent(fontmetric::FreeType.FT_Glyph_Metrics, scale::Integer)
 end
 
 function bearing(extent::FontExtent{T}) where T
+    # origin to SW corner of the horizontal metric
+    # with the conventions of freetype.org/freetype2/docs/glyphs/glyphs-3.html
     return Vec2{T}(
-        +extent.horizontal_bearing[1],
-        -extent.horizontal_bearing[2],
+        hbearing_ori_to_left(extent),
+        hbearing_ori_to_top(extent) - inkheight(extent),
     )
 end
 

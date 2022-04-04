@@ -186,13 +186,13 @@ function renderstring!(
 
         # draw glyph bounding box
         if bbox_glyph !== nothing
-            rect = boundingbox(metric)
-            (mc, mr), (Mc, Mr) = extrema(rect)
-            r1, r2 = clamp(py + mr, 1, imgh), clamp(py + Mr, 1, imgh)
-            c1, c2 = clamp(px + mc, 1, imgw), clamp(px + Mc, 1, imgw)
-            # ^^^ should be equivalent to vvv
-            # r1, r2 = clamp(oy + row_lo, 1, imgh), clamp(oy + row_hi, 1, imgh)
-            # c1, c2 = clamp(ox + col_lo, 1, imgw), clamp(ox + col_hi, 1, imgw)
+            # rect = boundingbox(metric)
+            # (mc, mr), (Mc, Mr) = extrema(rect)
+            # r1, r2 = clamp(py + mr, 1, imgh), clamp(py + Mr, 1, imgh)
+            # c1, c2 = clamp(px + mc, 1, imgw), clamp(px + Mc, 1, imgw)
+            # ^^^ should be equivalent to vvv: see JuliaGraphics/FreeTypeAbstraction.jl/pull/71
+            r1, r2 = clamp(oy + row_lo, 1, imgh), clamp(oy + row_hi, 1, imgh)
+            c1, c2 = clamp(ox + col_lo, 1, imgw), clamp(ox + col_hi, 1, imgw)
             if r2 > r1 && c2 > c1
                 img[r1, c1:c2] .= bbox_glyph
                 img[r2, c1:c2] .= bbox_glyph
