@@ -1,9 +1,10 @@
 module FreeTypeAbstraction
 
-using FreeType, StaticArrays, Colors, ColorVectorSpace, GeometryBasics
+using FreeType, Colors, ColorVectorSpace, GeometryBasics
 using Base.Iterators: Repeated, repeated
 import Base: /, *, ==
 import Base.Broadcast: BroadcastStyle, Style, broadcasted
+using GeometryBasics: StaticVector
 
 include("types.jl")
 include("findfonts.jl")

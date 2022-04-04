@@ -49,7 +49,7 @@ BroadcastStyle(::Type{<: FontExtent}) = Style{FontExtent}()
 BroadcastStyle(::Style{FontExtent}, x) = Style{FontExtent}()
 BroadcastStyle(x, ::Style{FontExtent}) = Style{FontExtent}()
 
-function broadcasted(op::Function, f::FontExtent, scaling::StaticVector)
+function broadcasted(op, f::FontExtent, scaling::Vec)
     return FontExtent(
         op.(f.vertical_bearing, scaling[1]),
         op.(f.horizontal_bearing, scaling[2]),
@@ -58,7 +58,7 @@ function broadcasted(op::Function, f::FontExtent, scaling::StaticVector)
     )
 end
 
-function broadcasted(op::Function, f::FontExtent)
+function broadcasted(op, f::FontExtent)
     return FontExtent(
         op.(f.vertical_bearing),
         op.(f.horizontal_bearing),
@@ -67,7 +67,7 @@ function broadcasted(op::Function, f::FontExtent)
     )
 end
 
-function broadcasted(op::Function, ::Type{T}, f::FontExtent) where T
+function broadcasted(op, ::Type{T}, f::FontExtent) where T
     return FontExtent(
         map(x-> op(T, x), f.vertical_bearing),
         map(x-> op(T, x), f.horizontal_bearing),
