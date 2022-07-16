@@ -211,7 +211,7 @@ function internal_get_extent(face::FTFont, glyphspec)
     If that happens, all glyph metrics are incorrect. We avoid this by using the normalized space.
     =#
     err = FT_Load_Glyph(face, gi, FT_LOAD_NO_SCALE)
-    check_error(err, "Could not load char to get extent.")
+    check_error(err, "Could not load glyph $(repr(glyphspec)) from $(face) to get extent.")
     # This gives us the font metrics in normalized units (0, 1), with negative
     # numbers interpreted as an offset
     return FontExtent(unsafe_load(face.glyph).metrics, Float32(face.units_per_EM))

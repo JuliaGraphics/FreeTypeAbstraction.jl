@@ -2,7 +2,7 @@
 function load_glyph(face::FTFont, glyph)
     gi = glyph_index(face, glyph)
     err = FT_Load_Glyph(face, gi, FT_LOAD_RENDER)
-    check_error(err, "Could not load char to render.")
+    check_error(err, "Could not load glyph $(repr(glyph)) from $(face) to render.")
 end
 
 function loadglyph(face::FTFont, glyph, pixelsize::Integer)
