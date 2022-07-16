@@ -15,10 +15,6 @@ face = FA.findfont("hack")
     @test FA.ascender(face) isa Real
     @test FA.descender(face) isa Real
 
-    bb = FA.boundingbox("asdasd", face, 64)
-    @test round.(Int, minimum(bb)) == Vec(4, -1)
-    @test round.(Int, widths(bb)) == Vec2(221, 50)
-
     FA.set_pixelsize(face, 64) # should be the default
     img, extent = FA.renderface(face, 'C', 64)
     @test size(img) == (30, 49)
@@ -215,25 +211,6 @@ end
         gcolor = RGB{Float32}(0., 1., 0.), bbox = RGB{Float32}(1., 0., 0.), bbox_glyph = RGB{Float32}(0., 0., 1.)
     )
     @test true
-end
-
-@testset "layout" begin
-    extent = FA.extents(face, '█', 10)
-    @test extent == FA.extents(face, '█', 10)
-    FA.inkboundingbox(extent)
-    FA.height_insensitive_boundingbox(extent, face)
-
-    FA.boundingbox('a', face, .5)
-    FA.glyph_ink_size('a', face, .5)
-    FA.metrics_bb('a', face, .5)
-
-    for (ft, sc) in (
-        (face, .5),
-        ([face, face], [.5, .5]),
-        (Iterators.repeated(face), Iterators.repeated(.5))
-    )
-        FA.boundingbox("ab", ft, sc)
-    end
 end
 
 # Find fonts
