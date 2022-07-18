@@ -29,6 +29,8 @@ face = FA.findfont("hack")
     @test FA.rightinkbound(extent) == 34
     @test FA.bottominkbound(extent) == -1
     @test FA.topinkbound(extent) == 48
+    @test FA.inkboundingbox(extent) == HyperRectangle{2, Float32}(Float32[4.0, -1.0], Float32[30.0, 49.0])
+    @test_broken FA.height_insensitive_boundingbox(extent, face) == HyperRectangle{2, Float32}(Float32[4.0, 64 * -0.23583984], Float32[30.0, 64 * 1.2006836])
 
     a = renderstring!(zeros(UInt8, 20, 100), "helgo", face, 10, 10, 10)
 
@@ -49,6 +51,12 @@ face = FA.findfont("hack")
 
     renderstring!(zeros(UInt8, 20, 100), "helgo", face, 10, 25, 80)
     @test_logs (:warn, "using tuple for pixelsize is deprecated, please use one integer") renderstring!(zeros(UInt8, 20, 100), "helgo", face, (10, 10), 1, 1)
+end
+
+@testset "ways to access glyphs" begin
+    i = FA.glyph_index(face, 'A')
+    @test FA.glyph_index(face, i) == i
+    @test FA.glyph_index(face, "A") == i
 end
 
 @testset "alignements" begin
