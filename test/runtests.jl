@@ -1,9 +1,17 @@
 ENV["FREETYPE_ABSTRACTION_FONT_PATH"] = @__DIR__  # coverage
 
 using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryBasics
+using GeometryBasics: Vec2f
 import FreeTypeAbstraction as FA
 using FreeType
 using Test
+
+@testset "init and done" begin
+    @test_throws ErrorException FA.ft_init()
+    @test FA.ft_done()
+    @test_throws ErrorException FA.ft_done()
+    @test FA.ft_init()
+end
 
 face = FA.findfont("hack")
 
@@ -14,10 +22,6 @@ face = FA.findfont("hack")
 
     @test FA.ascender(face) isa Real
     @test FA.descender(face) isa Real
-
-    bb = FA.boundingbox("asdasd", face, 64)
-    @test round.(Int, minimum(bb)) == Vec(4, -1)
-    @test round.(Int, widths(bb)) == Vec2(221, 50)
 
     FA.set_pixelsize(face, 64) # should be the default
     img, extent = FA.renderface(face, 'C', 64)
@@ -33,6 +37,8 @@ face = FA.findfont("hack")
     @test FA.rightinkbound(extent) == 34
     @test FA.bottominkbound(extent) == -1
     @test FA.topinkbound(extent) == 48
+    @test FA.inkboundingbox(extent) == HyperRectangle{2, Float32}(Float32[4.0, -1.0], Float32[30.0, 49.0])
+    @test_broken FA.height_insensitive_boundingbox(extent, face) == HyperRectangle{2, Float32}(Float32[4.0, 64 * -0.23583984], Float32[30.0, 64 * 1.2006836])
 
     a = renderstring!(zeros(UInt8, 20, 100), "helgo", face, 10, 10, 10)
 
@@ -53,6 +59,12 @@ face = FA.findfont("hack")
 
     renderstring!(zeros(UInt8, 20, 100), "helgo", face, 10, 25, 80)
     @test_logs (:warn, "using tuple for pixelsize is deprecated, please use one integer") renderstring!(zeros(UInt8, 20, 100), "helgo", face, (10, 10), 1, 1)
+end
+
+@testset "ways to access glyphs" begin
+    i = FA.glyph_index(face, 'A')
+    @test FA.glyph_index(face, i) == i
+    @test FA.glyph_index(face, "A") == i
 end
 
 @testset "alignements" begin
@@ -217,25 +229,6 @@ end
     @test true
 end
 
-@testset "layout" begin
-    extent = FA.extents(face, '█', 10)
-    @test extent == FA.extents(face, '█', 10)
-    FA.inkboundingbox(extent)
-    FA.height_insensitive_boundingbox(extent, face)
-
-    FA.boundingbox('a', face, .5)
-    FA.glyph_ink_size('a', face, .5)
-    FA.metrics_bb('a', face, .5)
-
-    for (ft, sc) in (
-        (face, .5),
-        ([face, face], [.5, .5]),
-        (Iterators.repeated(face), Iterators.repeated(.5))
-    )
-        FA.boundingbox("ab", ft, sc)
-    end
-end
-
 # Find fonts
 # these fonts should be available on all platforms:
 
@@ -282,4 +275,22 @@ end
         @time findfont(font)
     end
     @test true
+end
+
+@testset "Font extent" begin
+    f1 = FontExtent(Vec2f(1, 2), Vec2f(3, 4), Vec2f(5, 6), Vec2f(7, 8))
+    f2 = FA.broadcasted(x -> 2 * x, f1)
+    @test f2 == FontExtent(Vec2f(2, 4), Vec2f(6, 8), Vec2f(10, 12), Vec2f(14, 16))
+    f3 = FA.broadcasted(*, f1, Vec2f(2, 3))
+    @test f3 == FontExtent(Vec2f(2, 4), Vec2f(9, 12), Vec2f(10, 18), Vec2f(14, 24))
+end
+
+@testset "Boundingbox" begin
+    for glyph in ('a', FA.glyph_index(face, 'a'), "a")
+        bb, extent = FA.metrics_bb(glyph, face, 64)
+        bb2 = FA.boundingbox(glyph, face, 64)
+        @test bb == bb2
+        w = GeometryBasics.widths(bb2)
+        @test w == FA.glyph_ink_size(glyph, face, 64)
+    end
 end

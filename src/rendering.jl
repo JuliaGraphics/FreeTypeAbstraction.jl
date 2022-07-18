@@ -1,24 +1,25 @@
 
-function loadchar(face::FTFont, c::Char)
-    err = FT_Load_Char(face, c, FT_LOAD_RENDER)
-    check_error(err, "Could not load char to render.")
+function load_glyph(face::FTFont, glyph)
+    gi = glyph_index(face, glyph)
+    err = FT_Load_Glyph(face, gi, FT_LOAD_RENDER)
+    check_error(err, "Could not load glyph $(repr(glyph)) from $(face) to render.")
 end
 
-function loadglyph(face::FTFont, c::Char, pixelsize::Integer)
+function loadglyph(face::FTFont, glyph, pixelsize::Integer)
     set_pixelsize(face, pixelsize)
-    loadchar(face, c)
-    glyph = unsafe_load(face.glyph)
-    @assert glyph.format == FreeType.FT_GLYPH_FORMAT_BITMAP
-    return glyph
+    load_glyph(face, glyph)
+    gl = unsafe_load(face.glyph)
+    @assert gl.format == FreeType.FT_GLYPH_FORMAT_BITMAP
+    return gl
 end
 
-function renderface(face::FTFont, c::Char, pixelsize::Integer)
-    glyph = loadglyph(face, c, pixelsize)
-    return glyphbitmap(glyph.bitmap), FontExtent(glyph.metrics)
+function renderface(face::FTFont, glyph, pixelsize::Integer)
+    gl = loadglyph(face, glyph, pixelsize)
+    return glyphbitmap(gl.bitmap), FontExtent(gl.metrics)
 end
 
-function extents(face::FTFont, c::Char, pixelsize::Integer)
-    return FontExtent(loadglyph(face, c, pixelsize).metrics)
+function extents(face::FTFont, glyph, pixelsize::Integer)
+    return FontExtent(loadglyph(face, glyph, pixelsize).metrics)
 end
 
 function glyphbitmap(bitmap::FreeType.FT_Bitmap)

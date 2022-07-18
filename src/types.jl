@@ -126,9 +126,9 @@ end
 mutable struct FTFont
     ft_ptr::FreeType.FT_Face
     use_cache::Bool
-    extent_cache::Dict{Char, FontExtent{Float32}}
+    extent_cache::Dict{UInt64, FontExtent{Float32}}
     function FTFont(ft_ptr::FreeType.FT_Face, use_cache::Bool=true)
-        extent_cache = Dict{Tuple{Int, Char}, FontExtent{Float32}}()
+        extent_cache = Dict{UInt64, FontExtent{Float32}}()
         face = new(ft_ptr, use_cache, extent_cache)
         finalizer(safe_free, face)
         return face
@@ -173,9 +173,9 @@ function set_pixelsize(face::FTFont, size::Integer)
     return size
 end
 
-function kerning(c1::Char, c2::Char, face::FTFont)
-    i1 = FT_Get_Char_Index(face, c1)
-    i2 = FT_Get_Char_Index(face, c2)
+function kerning(glyphspec1, glyphspec2, face::FTFont)
+    i1 = glyph_index(face, glyphspec1)
+    i2 = glyph_index(face, glyphspec2)
     kerning2d = Ref{FreeType.FT_Vector}()
     err = FT_Get_Kerning(face, i1, i2, FreeType.FT_KERNING_DEFAULT, kerning2d)
     # Can error if font has no kerning! Since that's somewhat expected, we just return 0
@@ -185,17 +185,23 @@ function kerning(c1::Char, c2::Char, face::FTFont)
     return Vec2f(kerning2d[].x / divisor, kerning2d[].y / divisor)
 end
 
-function get_extent(face::FTFont, char::Char)
+function get_extent(face::FTFont, glyphspec)
+    gi = glyph_index(face, glyphspec)
     if use_cache(face)
-        get!(get_cache(face), char) do
-            return internal_get_extent(face, char)
+        get!(get_cache(face), gi) do
+            return internal_get_extent(face, gi)
         end
     else
-        return internal_get_extent(face, char)
+        return internal_get_extent(face, gi)
     end
 end
 
-function internal_get_extent(face::FTFont, char::Char)
+glyph_index(face::FTFont, glyphname::String)::UInt64 = FT_Get_Name_Index(face, glyphname)
+glyph_index(face::FTFont, char::Char)::UInt64 = FT_Get_Char_Index(face, char)
+glyph_index(face::FTFont, int::Integer) = UInt64(int)
+
+function internal_get_extent(face::FTFont, glyphspec)
+    gi = glyph_index(face, glyphspec)
     #=
     Load chars without scaling. This leaves all glyph metrics that can be
     retrieved in font units, which can be normalized by dividing with the
@@ -204,8 +210,8 @@ function internal_get_extent(face::FTFont, char::Char)
     pixelsize can be silently changed by third parties, such as Cairo.
     If that happens, all glyph metrics are incorrect. We avoid this by using the normalized space.
     =#
-    err = FT_Load_Char(face, char, FT_LOAD_NO_SCALE)
-    check_error(err, "Could not load char to get extent.")
+    err = FT_Load_Glyph(face, gi, FT_LOAD_NO_SCALE)
+    check_error(err, "Could not load glyph $(repr(glyphspec)) from $(face) to get extent.")
     # This gives us the font metrics in normalized units (0, 1), with negative
     # numbers interpreted as an offset
     return FontExtent(unsafe_load(face.glyph).metrics, Float32(face.units_per_EM))
