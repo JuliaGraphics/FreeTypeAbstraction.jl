@@ -1,9 +1,17 @@
 ENV["FREETYPE_ABSTRACTION_FONT_PATH"] = @__DIR__  # coverage
 
 using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryBasics
+using GeometryBasics: Vec2f
 import FreeTypeAbstraction as FA
 using FreeType
 using Test
+
+@testset "init and done" begin
+    @test_throws ErrorException FA.ft_init()
+    @test FA.ft_done()
+    @test_throws ErrorException FA.ft_done()
+    @test FA.ft_init()
+end
 
 face = FA.findfont("hack")
 
@@ -267,4 +275,12 @@ end
         @time findfont(font)
     end
     @test true
+end
+
+@testset "Font extent" begin
+    f1 = FontExtent(Vec2f(1, 2), Vec2f(3, 4), Vec2f(5, 6), Vec2f(7, 8))
+    f2 = FA.broadcasted(x -> 2 * x, f1)
+    @test f2 == FontExtent(Vec2f(2, 4), Vec2f(6, 8), Vec2f(10, 12), Vec2f(14, 16))
+    f3 = FA.broadcasted(*, f1, Vec2f(2, 3))
+    @test f3 == FontExtent(Vec2f(2, 4), Vec2f(9, 12), Vec2f(10, 18), Vec2f(14, 24))
 end
