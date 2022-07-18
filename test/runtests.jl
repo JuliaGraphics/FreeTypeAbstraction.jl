@@ -284,3 +284,13 @@ end
     f3 = FA.broadcasted(*, f1, Vec2f(2, 3))
     @test f3 == FontExtent(Vec2f(2, 4), Vec2f(9, 12), Vec2f(10, 18), Vec2f(14, 24))
 end
+
+@testset "Boundingbox" begin
+    for glyph in ('a', FA.glyph_index(face, 'a'), "a")
+        bb, extent = FA.metrics_bb(glyph, face, 64)
+        bb2 = FA.boundingbox(glyph, face, 64)
+        @test bb == bb2
+        w = GeometryBasics.widths(bb2)
+        @test w == FA.glyph_ink_size(glyph, face, 64)
+    end
+end
