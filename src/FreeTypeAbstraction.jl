@@ -1,23 +1,22 @@
 module FreeTypeAbstraction
 
-using FreeType, Colors, ColorVectorSpace, GeometryBasics
+using FreeType, Colors, ColorVectorSpace, GeometryBasicsCore
 using Base.Iterators: Repeated, repeated
 import Base: /, *, ==
+
 import Base.Broadcast: BroadcastStyle, Style, broadcasted
-using GeometryBasics: StaticVector
+import GeometryBasicsCore: StaticVector
 
 include("types.jl")
 include("findfonts.jl")
 include("layout.jl")
 include("rendering.jl")
 
-export FTFont
-export newface
-export renderface
-export FontExtent
-export kerning
-export renderstring!
-export findfont
+# types
+export FTFont, FontExtent
+
+# methods
+export newface, renderface, kerning, renderstring!, findfont
 
 const valid_fontpaths = String[]
 fontpaths() = valid_fontpaths

@@ -1,10 +1,11 @@
 ENV["FREETYPE_ABSTRACTION_FONT_PATH"] = @__DIR__  # coverage
 
-using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryBasics
-using GeometryBasics: Vec2f
-import FreeTypeAbstraction as FA
-using FreeType
+using FreeTypeAbstraction, FreeType
+using Colors, ColorVectorSpace, GeometryBasicsCore
 using Test
+
+import GeometryBasicsCore: Vec2f
+import FreeTypeAbstraction as FA
 
 @testset "init and done" begin
     @test_throws ErrorException FA.ft_init()
@@ -290,7 +291,7 @@ end
         bb, extent = FA.metrics_bb(glyph, face, 64)
         bb2 = FA.boundingbox(glyph, face, 64)
         @test bb == bb2
-        w = GeometryBasics.widths(bb2)
+        w = widths(bb2)
         @test w == FA.glyph_ink_size(glyph, face, 64)
     end
 end
