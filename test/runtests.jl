@@ -19,6 +19,7 @@ face = FA.findfont("hack")
     @test :size in propertynames(face)
     @test repr(face) == "FTFont (family = Hack, style = Regular)"
     @test Broadcast.broadcastable(face)[] == face
+    @test FA.get_path(face) == joinpath(@__DIR__, "hack_regular.ttf")
 
     @test FA.ascender(face) isa Real
     @test FA.descender(face) isa Real

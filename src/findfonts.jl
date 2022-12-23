@@ -129,7 +129,7 @@ function findfont(
         bold::Bool=false, # and this as well
         additional_fonts::String=""
     )
-    (path_ft = get(FONT_CACHE, searchstring, nothing)) !== nothing && return path_ft
+    (font = get(FONT_CACHE, searchstring, nothing)) !== nothing && return font
     font_folders = copy(fontpaths())
 
     isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
