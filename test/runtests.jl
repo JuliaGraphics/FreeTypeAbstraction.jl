@@ -13,7 +13,7 @@ using Test
     @test FA.ft_init()
 end
 
-face = FA.findfont("hack")[2]
+face = FA.findfont("hack")
 
 @testset "basics" begin
     @test :size in propertynames(face)
@@ -261,12 +261,12 @@ end
     append!(FA.valid_fontpaths, valid_fontpaths)
     for font in fonts
         @testset "finding $font" begin
-            @test findfont(font)[2] !== nothing
+            @test findfont(font) !== nothing
         end
     end
     @testset "find in additional dir" begin
-        @test findfont("Hack")[2] === nothing
-        @test findfont("Hack", additional_fonts = @__DIR__)[2] !== nothing
+        @test findfont("Hack") === nothing
+        @test findfont("Hack", additional_fonts = @__DIR__) !== nothing
     end
 end
 

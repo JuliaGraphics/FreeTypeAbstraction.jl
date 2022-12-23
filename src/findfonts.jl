@@ -121,7 +121,7 @@ end
 
 fontname(ft::FTFont) = "$(family_name(ft)) $(style_name(ft))"
 
-const FONT_CACHE = Dict{String, Tuple{String,FTFont}}()
+const FONT_CACHE = Dict{String, FTFont}()
 
 function findfont(
         searchstring::String;
@@ -138,7 +138,6 @@ function findfont(
     searchparts = unique(split(lowercase(searchstring), r"\W+", keepempty=false))
 
     best_score_so_far = (0, 0, false, typemin(Int))
-    best_font_path = ""
     best_font = nothing
 
     for folder in font_folders
@@ -162,7 +161,6 @@ function findfont(
                 isnothing(best_font) || finalize(best_font)
 
                 # new candidate
-                best_font_path = fpath
                 best_font = face
                 best_score_so_far = score
             else
@@ -170,6 +168,6 @@ function findfont(
             end
         end
     end
-    best_font === nothing || (FONT_CACHE[searchstring] = (best_font_path, best_font))
-    return (best_font_path, best_font)
+    best_font === nothing || (FONT_CACHE[searchstring] = best_font)
+    return best_font
 end
