@@ -294,3 +294,11 @@ end
         @test w == FA.glyph_ink_size(glyph, face, 64)
     end
 end
+
+@testset "threaded face creation" begin
+    # this should just not crash
+    Threads.@threads for i in 1:10_000
+        FreeTypeAbstraction.newface(joinpath(@__DIR__, "hack_regular.ttf"))
+    end
+    GC.gc()
+end

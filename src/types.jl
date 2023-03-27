@@ -18,9 +18,15 @@ function ft_done()
     return err == 0
 end
 
+# FT_New_Face and FT_Done_Face should not be called at the same time from different threads
+const new_or_done_face_lock = ReentrantLock()
+
 function newface(facename, faceindex::Real=0, ftlib=FREE_FONT_LIBRARY)
     face = Ref{FT_Face}()
-    err = FT_New_Face(ftlib[1], facename, Int32(faceindex), face)
+    local err
+    lock(new_or_done_face_lock) do
+        err = FT_New_Face(ftlib[1], facename, Int32(faceindex), face)
+    end
     check_error(err, "Couldn't load font $facename")
     return face[]
 end
@@ -115,8 +121,15 @@ end
 function safe_free(face)
     ptr = getfield(face, :ft_ptr)
     if ptr != C_NULL && FREE_FONT_LIBRARY[1] != C_NULL
-        FT_Done_Face(face)
+        if !islocked(new_or_done_face_lock) && trylock(new_or_done_face_lock) do
+                FT_Done_Face(face)
+                return true
+            end
+        else
+            finalizer(safe_free, face)
+        end
     end
+    return
 end
 
 function boundingbox(extent::FontExtent{T}) where T
