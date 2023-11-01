@@ -124,12 +124,13 @@ function boundingbox(extent::FontExtent{T}) where T
 end
 
 mutable struct FTFont
+    ft_path::String
     ft_ptr::FreeType.FT_Face
     use_cache::Bool
     extent_cache::Dict{UInt64, FontExtent{Float32}}
-    function FTFont(ft_ptr::FreeType.FT_Face, use_cache::Bool=true)
+    function FTFont(ft_path::String, ft_ptr::FreeType.FT_Face, use_cache::Bool=true)
         extent_cache = Dict{UInt64, FontExtent{Float32}}()
-        face = new(ft_ptr, use_cache, extent_cache)
+        face = new(ft_path, ft_ptr, use_cache, extent_cache)
         finalizer(safe_free, face)
         return face
     end
@@ -137,8 +138,9 @@ end
 
 use_cache(face::FTFont) = getfield(face, :use_cache)
 get_cache(face::FTFont) = getfield(face, :extent_cache)
+get_path(face::FTFont) = getfield(face, :ft_path)
 
-FTFont(path::String) = FTFont(newface(path))
+FTFont(path::String) = FTFont(path, newface(path))
 
 # C interop
 Base.cconvert(::Type{FreeType.FT_Face}, font::FTFont) = font

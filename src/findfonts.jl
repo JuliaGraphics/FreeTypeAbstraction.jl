@@ -121,12 +121,15 @@ end
 
 fontname(ft::FTFont) = "$(family_name(ft)) $(style_name(ft))"
 
+const FONT_CACHE = Dict{String, FTFont}()
+
 function findfont(
         searchstring::String;
         italic::Bool=false, # this is unused in the new implementation
         bold::Bool=false, # and this as well
         additional_fonts::String=""
     )
+    (font = get(FONT_CACHE, searchstring, nothing)) !== nothing && return font
     font_folders = copy(fontpaths())
 
     isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
@@ -144,7 +147,6 @@ function findfont(
             face === nothing && continue
 
             score = match_font(face, searchparts)
-
             # we can compare all four tuple elements of the score at once
             # in order of importance:
 
@@ -156,9 +158,7 @@ function findfont(
             family_match_score = score[1]
             if family_match_score > 0 && score > best_score_so_far
                 # finalize previous best font to close the font file
-                if !isnothing(best_font)
-                    finalize(best_font)
-                end
+                isnothing(best_font) || finalize(best_font)
 
                 # new candidate
                 best_font = face
@@ -168,6 +168,6 @@ function findfont(
             end
         end
     end
-
+    best_font === nothing || (FONT_CACHE[searchstring] = best_font)
     return best_font
 end

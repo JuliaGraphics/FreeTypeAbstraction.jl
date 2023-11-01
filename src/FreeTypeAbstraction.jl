@@ -34,6 +34,8 @@ function __init__()
         push!(paths, path)
     end
     append!(valid_fontpaths, paths)
+    # fonts aren't cacheable by precompilation, so we need to empty it on load!
+    empty!(FONT_CACHE)
 end
 
 if Base.VERSION >= v"1.4.2"
