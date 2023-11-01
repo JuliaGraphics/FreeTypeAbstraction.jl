@@ -14,13 +14,13 @@ using FreeTypeAbstraction
 face = FTFont("hack_regular.ttf")
 
 # render a character
-img, metric = renderface(face, 'C')
+pixelsize = 10
+img, metric = renderface(face, 'C', pixelsize)
 
 # render a string into an existing matrix
 myarray = zeros(UInt8, 100, 100)
-pixelsize = 10
 x0, y0 = 90, 10
-renderstring!(myarray, "hello", face, pixelsize, x0, y0, halign=:hright)
+renderstring!(myarray, "hello", face, pixelsize, y0, x0, halign=:hright)
 ```
 
 credits to @aaalexandrov from whom most of the early code comes.
