@@ -10,11 +10,12 @@ Draw text into a Matrix.
 
 using FreeTypeAbstraction
 
-# load a font
-face = FTFont("hack_regular.ttf")
+# search for a font on your system
+# (for this example, we use https://juliamono.netlify.app/)
+face = findfont("juliamono")
 
 # render a character
-img, metric = renderface(face, 'C')
+img, metric = renderface(face, 'C', 100)
 
 # render a string into an existing matrix
 myarray = zeros(UInt8, 100, 100)
