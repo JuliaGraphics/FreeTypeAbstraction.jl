@@ -11,8 +11,8 @@ Draw text into a Matrix.
 using FreeTypeAbstraction
 
 # search for a font on your system
-# (for this example, we use https://juliamono.netlify.app/)
-face = findfont("juliamono")
+# Choose the name of a font you have installed
+face = findfont("arial") # if this returns `nothing`, that means it could not find the font
 
 # render a character
 img, metric = renderface(face, 'C', 100)
