@@ -86,29 +86,21 @@ function match_font(face::FTFont, searchparts)::Tuple{Int, Int, Bool, Int}
 
     fontlength_penalty = -(length(fname) + length(sname))
 
-
     family_matches = any(occursin(part, fname) for part in searchparts)
 
     # return early if family name doesn't have a match
     family_matches || return (0, 0, is_regular_style, fontlength_penalty)
 
-    family_score = sum(length(part) for part in searchparts if occursin(part, fname))
-
-    # now enhance the score with style information
-    remaining_parts = filter(part -> !occursin(part, fname), searchparts)
-
-    if isempty(remaining_parts)
-        return (family_score, 0, is_regular_style, fontlength_penalty)
+    family_score, style_score = 0, 0
+    for (i, part) in enumerate(Iterators.reverse(searchparts))
+        if occursin(part, fname)
+            family_score += i + length(part)
+        elseif occursin(part, sname)
+            style_score += i + length(part)
+        end
     end
 
-    # check if any parts match the style name, otherwise return early
-    if !any(occursin(part, sname) for part in remaining_parts)
-        return (family_score, 0, is_regular_style, fontlength_penalty)
-    end
-
-    style_score = sum(length(part) for part in remaining_parts if occursin(part, sname))
-
-    return (family_score, style_score, is_regular_style, fontlength_penalty)
+    return (family_score + style_score, family_score, is_regular_style, fontlength_penalty)
 end
 
 function try_load(fpath)
@@ -128,46 +120,63 @@ function findfont(
         additional_fonts::String=""
     )
     font_folders = copy(fontpaths())
-
     isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
 
     # \W splits at all groups of non-word characters (like space, -, ., etc)
     searchparts = unique(split(lowercase(searchstring), r"\W+", keepempty=false))
 
-    best_score_so_far = (0, 0, false, typemin(Int))
-    best_font = nothing
-
-    for folder in font_folders
-        for font in readdir(folder)
-            fpath = joinpath(folder, font)
-            face = try_load(fpath)
-            face === nothing && continue
-
-            score = match_font(face, searchparts)
-
-            # we can compare all four tuple elements of the score at once
-            # in order of importance:
-
-            # 1. number of family match characters
-            # 2. number of style match characters
-            # 3. is font a "regular" style variant?
-            # 4. the negative length of the font name, the shorter the better
-
-            family_match_score = score[1]
-            if family_match_score > 0 && score > best_score_so_far
-                # finalize previous best font to close the font file
-                if !isnothing(best_font)
-                    finalize(best_font)
-                end
-
-                # new candidate
-                best_font = face
-                best_score_so_far = score
-            else
-                finalize(face)
+    max_score1 = sum(length, searchparts) + sum(1:length(searchparts))
+    best_1i, best_file, best_score = 0, nothing, (0, 0, false, typemin(Int))
+    fontfiles = fontfiles_guess_sorted(searchparts; additional_fonts)
+    for (i, fontfile) in enumerate(fontfiles)
+        face = try_load(fontfile)
+        face === nothing && continue
+        # we can compare all four tuple elements of the score at once
+        # in order of importance:
+        # 1. number of family and style match characters (with priority factor)
+        # 2. number of family match characters  (with priority factor)
+        # 3. is font a "regular" style variant?
+        # 4. the negative length of the font name, the shorter the better
+        score = match_font(face, searchparts)
+        if first(score) > 0 && score >= best_score
+            best_1i = i
+            if score > best_score
+                best_file, best_score = fontfile, score
             end
+        elseif first(best_score) == max_score1 && first(score) < first(best_score) && i > 2 * best_1i
+            return best_font
         end
     end
+    best_font
+end
 
-    return best_font
+"""
+    fontfiles_guess_sorted(searchparts::Vector{<:AbstractString}; additional_fonts::String="")
+
+Collect all font files under `fontpaths` (also including `additional_fonts` if
+non-empty), and then rank them by how closely we think the font information
+matches `searchparts`, guessing based on the font file name.
+"""
+function fontfiles_guess_sorted(searchparts::Vector{<:AbstractString}; additional_fonts::String="")
+    fontfile_names = Dict{String, String}()
+    function score_names(searchparts, fontfile)
+        filename = get!(() -> splitext(basename(fontfile)) |> first |> lowercase,
+                        fontfile_names, fontfile) # Caching produces a ~7x speedup
+        # We sum the length of the search parts found in `filename` with a reverse part
+        # index (`i`) to weight earlier matching parts higher.  This is essentially
+        # an approximation of the more sophisticated (and expensive) scoring performed
+        # in `match_font`.
+        sum((i + length(part) for (i, part) in enumerate(Iterators.reverse(searchparts))
+                 if occursin(part, filename)),
+            init=0), -length(filename)
+    end
+    font_folders = copy(fontpaths())
+    isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
+    searchparts = copy(searchparts)
+    push!(searchparts, String(map(first, searchparts)))
+    allfonts = String[]
+    for folder in font_folders
+        append!(allfonts, readdir(folder, join=true))
+    end
+    sort(allfonts, by=Base.Fix1(score_names, searchparts), rev=true)
 end
