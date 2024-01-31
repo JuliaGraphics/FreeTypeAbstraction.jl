@@ -45,7 +45,7 @@ end
 family_name(x::FTFont) = lowercase(x.family_name)
 style_name(x::FTFont) = lowercase(x.style_name)
 
-const REGULAR_STYLES = ("regular", "normal", "medium", "standard", "roman", "book")
+const REGULAR_STYLES = ("regular", "normal", "standard", "book", "roman", "medium")
 
 """
     score_font(searchparts::Vector{<:AbstractString}, fontpath::String)
@@ -84,15 +84,19 @@ Then this is how this function would match different search strings:
 - "times"               => no match
 - "arial"               => no match
 """
-function score_font(searchparts::Vector{<:AbstractString}, family::String, style::String)::Tuple{Int, Int, Bool, Int}
-    is_regular_style = any(occursin(s, style) for s in REGULAR_STYLES)
+function score_font(searchparts::Vector{<:AbstractString}, family::String, style::String)::Tuple{Int, Int, Int, Int}
+    regularity = minimum((length(REGULAR_STYLES) + 1 - findfirst(==(regsty), REGULAR_STYLES)::Int
+                          for regsty in REGULAR_STYLES if occursin(regsty, style)), init=typemax(Int))
+    if regularity == typemax(Int)
+        regularity = 0
+    end
+    ext_priority = length(FONT_EXTENSION_PRIORITY) - something(findfirst(==(ext), FONT_EXTENSION_PRIORITY), -1)
 
     fontlength_penalty = -(length(family) + length(style))
 
-    family_matches = any(occursin(part, family) for part in searchparts)
-
     # return early if family name doesn't have a match
-    family_matches || return (0, 0, is_regular_style, fontlength_penalty)
+    any(occursin(part, family) for part in searchparts) ||
+        return (0, 0, regularity, fontlength_penalty)
 
     family_score, style_score = 0, 0
     for (i, part) in enumerate(Iterators.reverse(searchparts))
@@ -103,14 +107,14 @@ function score_font(searchparts::Vector{<:AbstractString}, family::String, style
         end
     end
 
-    return (family_score + style_score, family_score, is_regular_style, fontlength_penalty)
+    return (family_score + style_score, family_score, regularity, fontlength_penalty)
 end
 
-function score_font(searchparts::Vector{<:AbstractString}, fontpath::String)::Tuple{Int, Int, Bool, Int}
+function score_font(searchparts::Vector{<:AbstractString}, fontpath::String)::Tuple{Int, Int, Int, Int}
     if (finfo = font_info(fontpath)) |> !isnothing
         score_font(searchparts, finfo.family, finfo.style)
     else
-        (0, 0, false, typemin(Int))
+        (0, 0, 0, typemin(Int))
     end
 end
 
