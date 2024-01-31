@@ -176,8 +176,8 @@ function findfont_nocache(searchstring::String, fontfolders::Vector{<:AbstractSt
     # \W splits at all groups of non-word characters (like space, -, ., etc)
     searchparts = unique(split(lowercase(searchstring), r"\W+", keepempty=false))
     max_score1 = sum(length, searchparts) + sum(1:length(searchparts))
-    best_1i, best_file, best_score = 0, nothing, (0, 0, 0, typemin(Int), 0)
-    for (i, fontfile) in enumerate(fontfiles_guess_sorted(searchparts, fontfolders))
+    best_file, best_score = nothing, (0, 0, 0, typemin(Int), 0)
+    for folder in fontfolders, fontfile in readdir(folder, join=true)
         # we can compare all five tuple elements of the score at once
         # in order of importance:
         # 1. number of family and style match characters (with priority factor)
@@ -186,44 +186,9 @@ function findfont_nocache(searchstring::String, fontfolders::Vector{<:AbstractSt
         # 4. the negative length of the font name, the shorter the better
         # 5. the font file extension priority
         score = score_font(searchparts, fontfile)
-        if first(score) > 0 && score >= best_score
-            best_1i = i
-            if score > best_score
-                best_file, best_score = fontfile, score
-            end
-        elseif first(best_score) == max_score1 && first(score) < first(best_score) && i > 2 * best_1i
-            return best_file
+        if first(score) > 0 && score > best_score
+            best_file, best_score = fontfile, score
         end
     end
     best_file
-end
-
-const FONTFILE_NAMES = Dict{String, String}()
-
-"""
-    fontfiles_guess_sorted(searchparts::Vector{<:AbstractString}; additional_fonts::String="")
-
-Collect all font files under `fontpaths` (also including `additional_fonts` if
-non-empty), and then rank them by how closely we think the font information
-matches `searchparts`, guessing based on the font file name.
-"""
-function fontfiles_guess_sorted(searchparts::Vector{<:AbstractString}, fontfolders::Vector{<:AbstractString})
-    function score_names(searchparts, fontfile)
-        filename = get!(() -> splitext(basename(fontfile)) |> first |> lowercase,
-                        FONTFILE_NAMES, fontfile) # Caching produces a ~7x speedup
-        # We sum the length of the search parts found in `filename` with a reverse part
-        # index (`i`) to weight earlier matching parts higher.  This is essentially
-        # an approximation of the more sophisticated (and expensive) scoring performed
-        # in `score_font`.
-        sum((i + length(part) for (i, part) in enumerate(Iterators.reverse(searchparts))
-                 if occursin(part, filename)),
-            init=0), -length(filename)
-    end
-    searchparts = copy(searchparts)
-    push!(searchparts, String(map(first, searchparts)))
-    allfonts = String[]
-    for folder in fontfolders
-        append!(allfonts, readdir(folder, join=true))
-    end
-    sort(allfonts, by=Base.Fix1(score_names, searchparts), rev=true)
 end
