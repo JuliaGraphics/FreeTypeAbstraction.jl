@@ -54,7 +54,7 @@ Uses the conventions of freetype.org/freetype2/docs/glyphs/glyphs-3.html
 * `gcolor`: background color; AbstractVector{T}, typemax(T) for T<:Integer, otherwise one(T)
 * `bcolor`: canvas background color; set to `nothing` for transparent
 * `halign`: :hleft, :hcenter, or :hright
-* `valign`: :vtop, :vcenter, :vbaseline, or :vbttom
+* `valign`: :vtop, :vcenter, :vbaseline, or :vbottom
 * `bbox_glyph`: glyph bounding box color (debugging)
 * `bbox`: bounding box color (debugging)
 * `gstr`: background string or array of chars (for background sizing)
