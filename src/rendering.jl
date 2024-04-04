@@ -1,14 +1,14 @@
 
 function load_glyph(face::FTFont, glyph)
     gi = glyph_index(face, glyph)
-    err = FT_Load_Glyph(face, gi, FT_LOAD_RENDER)
+    err = @lock face.lock FT_Load_Glyph(face, gi, FT_LOAD_RENDER)
     check_error(err, "Could not load glyph $(repr(glyph)) from $(face) to render.")
 end
 
 function loadglyph(face::FTFont, glyph, pixelsize::Integer)
     set_pixelsize(face, pixelsize)
     load_glyph(face, glyph)
-    gl = unsafe_load(face.glyph)
+    gl = @lock face.lock unsafe_load(face.glyph)
     @assert gl.format == FreeType.FT_GLYPH_FORMAT_BITMAP
     return gl
 end

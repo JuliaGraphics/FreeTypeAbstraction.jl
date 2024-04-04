@@ -294,3 +294,22 @@ end
         @test w == FA.glyph_ink_size(glyph, face, 64)
     end
 end
+
+@testset "Thread safety" begin
+    mktempdir() do dir
+        n = 100
+        fontfiles = map(1:n) do i
+            p = joinpath(dir, "hack_regular_$i.ttf")
+            cp(joinpath(@__DIR__, "hack_regular.ttf"), p)
+            p
+        end
+        Threads.@threads for f in fontfiles
+            fo = FreeTypeAbstraction.FTFont(f)
+            Threads.@threads for i in 1:100
+                g = FreeTypeAbstraction.load_glyph(fo, i)
+                g = FreeTypeAbstraction.loadglyph(fo, i, 64)
+                FreeTypeAbstraction.renderface(fo, i, 16)
+            end
+        end
+    end
+end
