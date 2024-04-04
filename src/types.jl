@@ -190,8 +190,8 @@ function kerning(glyphspec1, glyphspec2, face::FTFont)
     i1 = glyph_index(face, glyphspec1)
     i2 = glyph_index(face, glyphspec2)
     kerning2d = Ref{FreeType.FT_Vector}()
-    @lock face.lock begin
-        err = FT_Get_Kerning(face, i1, i2, FreeType.FT_KERNING_DEFAULT, kerning2d)
+    err = @lock face.lock begin
+        FT_Get_Kerning(face, i1, i2, FreeType.FT_KERNING_DEFAULT, kerning2d)
     end
     # Can error if font has no kerning! Since that's somewhat expected, we just return 0
     err != 0 && return Vec2f(0)
