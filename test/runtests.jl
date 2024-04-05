@@ -2,7 +2,8 @@ ENV["FREETYPE_ABSTRACTION_FONT_PATH"] = @__DIR__  # coverage
 
 using FreeTypeAbstraction, Colors, ColorVectorSpace, GeometryBasics
 using GeometryBasics: Vec2f
-import FreeTypeAbstraction as FA
+import FreeTypeAbstraction
+const FA = FreeTypeAbstraction
 using FreeType
 using Test
 
