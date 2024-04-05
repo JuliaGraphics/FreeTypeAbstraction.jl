@@ -1,26 +1,31 @@
 check_error(err, error_msg) = err == 0 || error("$error_msg with error: $err")
 
+const LIBRARY_LOCK = ReentrantLock()
 const FREE_FONT_LIBRARY = FT_Library[C_NULL]
 
 function ft_init()
-    if FREE_FONT_LIBRARY[1] != C_NULL
-        error("Freetype already initalized. init() called two times?")
+    @lock LIBRARY_LOCK begin
+        if FREE_FONT_LIBRARY[1] != C_NULL
+            error("Freetype already initalized. init() called two times?")
+        end
+        return FT_Init_FreeType(FREE_FONT_LIBRARY) == 0
     end
-    return FT_Init_FreeType(FREE_FONT_LIBRARY) == 0
 end
 
 function ft_done()
-    if FREE_FONT_LIBRARY[1] == C_NULL
-        error("Library == CNULL. FreeTypeAbstraction.done() called before init(), or done called two times?")
+    @lock LIBRARY_LOCK begin
+        if FREE_FONT_LIBRARY[1] == C_NULL
+            error("Library == CNULL. FreeTypeAbstraction.done() called before init(), or done called two times?")
+        end
+        err = FT_Done_FreeType(FREE_FONT_LIBRARY[1])
+        FREE_FONT_LIBRARY[1] = C_NULL
+        return err == 0
     end
-    err = FT_Done_FreeType(FREE_FONT_LIBRARY[1])
-    FREE_FONT_LIBRARY[1] = C_NULL
-    return err == 0
 end
 
 function newface(facename, faceindex::Real=0, ftlib=FREE_FONT_LIBRARY)
     face = Ref{FT_Face}()
-    err = FT_New_Face(ftlib[1], facename, Int32(faceindex), face)
+    err = @lock LIBRARY_LOCK FT_New_Face(ftlib[1], facename, Int32(faceindex), face)
     check_error(err, "Couldn't load font $facename")
     return face[]
 end
@@ -113,9 +118,11 @@ function bearing(extent::FontExtent{T}) where T
 end
 
 function safe_free(face)
-    ptr = getfield(face, :ft_ptr)
-    if ptr != C_NULL && FREE_FONT_LIBRARY[1] != C_NULL
-        FT_Done_Face(face)
+    @lock face.lock begin
+        ptr = getfield(face, :ft_ptr)
+        if ptr != C_NULL && FREE_FONT_LIBRARY[1] != C_NULL
+            FT_Done_Face(face)
+        end
     end
 end
 
@@ -127,9 +134,10 @@ mutable struct FTFont
     ft_ptr::FreeType.FT_Face
     use_cache::Bool
     extent_cache::Dict{UInt64, FontExtent{Float32}}
+    lock::ReentrantLock # lock this for the duration of any FT operation on ft_ptr
     function FTFont(ft_ptr::FreeType.FT_Face, use_cache::Bool=true)
         extent_cache = Dict{UInt64, FontExtent{Float32}}()
-        face = new(ft_ptr, use_cache, extent_cache)
+        face = new(ft_ptr, use_cache, extent_cache, ReentrantLock())
         finalizer(safe_free, face)
         return face
     end
@@ -150,13 +158,16 @@ end
 Base.propertynames(font::FTFont) = fieldnames(FreeType.FT_FaceRec)
 
 function Base.getproperty(font::FTFont, fieldname::Symbol)
-    fontrect = unsafe_load(getfield(font, :ft_ptr))
-    field = getfield(fontrect, fieldname)
-    if field isa Ptr{FT_String}
-        field == C_NULL && return ""
-        return unsafe_string(field)
-    else
-        return field
+    fieldname in fieldnames(FTFont) && return getfield(font, fieldname)
+    @lock font.lock begin
+        fontrect = unsafe_load(getfield(font, :ft_ptr))
+        field = getfield(fontrect, fieldname)
+        if field isa Ptr{FT_String}
+            field == C_NULL && return ""
+            return unsafe_string(field)
+        else
+            return field
+        end
     end
 end
 
@@ -168,16 +179,20 @@ end
 Base.Broadcast.broadcastable(ft::FTFont) = Ref(ft)
 
 function set_pixelsize(face::FTFont, size::Integer)
-    err = FT_Set_Pixel_Sizes(face, size, size)
-    check_error(err, "Couldn't set pixelsize")
-    return size
+    @lock face.lock begin
+        err = FT_Set_Pixel_Sizes(face, size, size)
+        check_error(err, "Couldn't set pixelsize")
+        return size
+    end
 end
 
 function kerning(glyphspec1, glyphspec2, face::FTFont)
     i1 = glyph_index(face, glyphspec1)
     i2 = glyph_index(face, glyphspec2)
     kerning2d = Ref{FreeType.FT_Vector}()
-    err = FT_Get_Kerning(face, i1, i2, FreeType.FT_KERNING_DEFAULT, kerning2d)
+    err = @lock face.lock begin
+        FT_Get_Kerning(face, i1, i2, FreeType.FT_KERNING_DEFAULT, kerning2d)
+    end
     # Can error if font has no kerning! Since that's somewhat expected, we just return 0
     err != 0 && return Vec2f(0)
     # 64 since metrics are in 1/64 units (units to 26.6 fractional pixels)
@@ -196,8 +211,8 @@ function get_extent(face::FTFont, glyphspec)
     end
 end
 
-glyph_index(face::FTFont, glyphname::String)::UInt64 = FT_Get_Name_Index(face, glyphname)
-glyph_index(face::FTFont, char::Char)::UInt64 = FT_Get_Char_Index(face, char)
+glyph_index(face::FTFont, glyphname::String)::UInt64 = @lock face.lock FT_Get_Name_Index(face, glyphname)
+glyph_index(face::FTFont, char::Char)::UInt64 = @lock face.lock FT_Get_Char_Index(face, char)
 glyph_index(face::FTFont, int::Integer) = UInt64(int)
 
 function internal_get_extent(face::FTFont, glyphspec)
@@ -210,11 +225,12 @@ function internal_get_extent(face::FTFont, glyphspec)
     pixelsize can be silently changed by third parties, such as Cairo.
     If that happens, all glyph metrics are incorrect. We avoid this by using the normalized space.
     =#
-    err = FT_Load_Glyph(face, gi, FT_LOAD_NO_SCALE)
+    err = @lock face.lock FT_Load_Glyph(face, gi, FT_LOAD_NO_SCALE)
     check_error(err, "Could not load glyph $(repr(glyphspec)) from $(face) to get extent.")
     # This gives us the font metrics in normalized units (0, 1), with negative
     # numbers interpreted as an offset
-    return FontExtent(unsafe_load(face.glyph).metrics, Float32(face.units_per_EM))
+    metrics = @lock face.lock unsafe_load(face.glyph).metrics
+    return FontExtent(metrics, Float32(face.units_per_EM))
 end
 
 descender(font) = font.descender / font.units_per_EM
