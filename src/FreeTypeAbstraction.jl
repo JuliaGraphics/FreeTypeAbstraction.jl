@@ -2,7 +2,7 @@ module FreeTypeAbstraction
 
 using FreeType, Colors, ColorVectorSpace, GeometryBasics
 using Base.Iterators: Repeated, repeated
-import Base: /, *, ==
+import Base: /, *, ==, @lock
 import Base.Broadcast: BroadcastStyle, Style, broadcasted
 using GeometryBasics: StaticVector
 
