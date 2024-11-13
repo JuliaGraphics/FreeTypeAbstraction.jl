@@ -9,7 +9,7 @@ FreeType = "b38be410-82b0-50bf-ab77-7b57e271db43"
 GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 
 [compat]
-ColorVectorSpace = "0.8, 0.9, 0.10"
+ColorVectorSpace = "0.8, 0.9, 0.10, 0.11"
 Colors = "0.11, 0.12, 0.13"
 FreeType = "4"
 GeometryBasics = "0.4.1"
