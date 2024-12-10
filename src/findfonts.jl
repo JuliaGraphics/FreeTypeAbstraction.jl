@@ -1,18 +1,25 @@
 family_name(x::FTFont) = lowercase(x.family_name)
 style_name(x::FTFont) = lowercase(x.style_name)
 
-const REGULAR_STYLES = ("regular", "normal", "medium", "standard", "roman", "book")
+const REGULAR_STYLES = ("regular", "normal", "standard", "book", "roman", "medium")
+const FONT_EXTENSION_PRIORITY = ("otc", "otf", "ttc", "ttf", "cff", "woff2", "woff", "pfa", "pfb", "pfr", "fnt", "pcf", "bdf")
 
 """
-Match a font using the user-specified search string. Each part of the search string
-is searched in the family name first which has to match once to include the font
-in the candidate list. For fonts with a family match the style
-name is matched next. For fonts with the same family and style name scores, regular
-fonts are preferred (any font that is "regular", "normal", "medium", "standard" or "roman")
-and as a last tie-breaker, shorter overall font names are preferred.
+    score_font(searchparts::Vector{<:AbstractString}, fontpath::String)
+    score_font(searchparts::Vector{<:AbstractString}, family::String, style::String, ext::String)
 
+Score a font match using the list user-specified `searchparts`. The font match
+can either be a path to a font file (`fontpath`), or a `family`, `style`, and
+`ext`.
 
-Example:
+Each part of the search string is searched in the family name first which has to
+match once to include the font in the candidate list. For fonts with a family
+match the style name is matched next. For fonts with the same family and style
+name scores, regular fonts are preferred (any font that is "regular", "normal",
+"medium", "standard" or "roman") and as a last tie-breaker, shorter overall font
+names are preferred.
+
+## Example:
 
 If we had only four fonts:
 - Helvetica Italic
@@ -35,36 +42,53 @@ Then this is how this function would match different search strings:
 - "times"               => no match
 - "arial"               => no match
 """
-function match_font(face::FTFont, searchparts)::Tuple{Int, Int, Bool, Int}
-    fname = family_name(face)
-    sname = style_name(face)
-    is_regular_style = any(occursin(s, sname) for s in REGULAR_STYLES)
+function score_font(searchparts::Vector{<:AbstractString}, family::String, style::String, ext::String)::Tuple{Int, Int, Int, Int, Int}
+    regularity = minimum((length(REGULAR_STYLES) + 1 - findfirst(==(regsty), REGULAR_STYLES)::Int
+                          for regsty in REGULAR_STYLES if occursin(regsty, style)), init=typemax(Int))
+    if regularity == typemax(Int)
+        regularity = 0
+    end
+    ext_priority = length(FONT_EXTENSION_PRIORITY) - something(findfirst(==(ext), FONT_EXTENSION_PRIORITY), -1)
 
-    fontlength_penalty = -(length(fname) + length(sname))
-
-
-    family_matches = any(occursin(part, fname) for part in searchparts)
+    fontlength_penalty = -(length(family) + length(style))
 
     # return early if family name doesn't have a match
-    family_matches || return (0, 0, is_regular_style, fontlength_penalty)
+    any(occursin(part, family) for part in searchparts) ||
+        return (0, 0, regularity, fontlength_penalty, ext_priority)
 
-    family_score = sum(length(part) for part in searchparts if occursin(part, fname))
-
-    # now enhance the score with style information
-    remaining_parts = filter(part -> !occursin(part, fname), searchparts)
-
-    if isempty(remaining_parts)
-        return (family_score, 0, is_regular_style, fontlength_penalty)
+    family_score, style_score = 0, 0
+    for (i, part) in enumerate(Iterators.reverse(searchparts))
+        if occursin(part, family)
+            family_score += i + length(part)
+        elseif occursin(part, style)
+            style_score += i + length(part)
+        end
     end
 
-    # check if any parts match the style name, otherwise return early
-    if !any(occursin(part, sname) for part in remaining_parts)
-        return (family_score, 0, is_regular_style, fontlength_penalty)
+    return (family_score + style_score, family_score, regularity, fontlength_penalty, ext_priority)
+end
+
+function score_font(searchparts::Vector{<:AbstractString}, fontpath::String)::Tuple{Int, Int, Int, Int, Int}
+    if (finfo = font_info(fontpath)) |> !isnothing
+        score_font(searchparts, finfo.family, finfo.style, finfo.ext)
+    else
+        (0, 0, 0, typemin(Int), length(FONT_EXTENSION_PRIORITY)+1)
     end
+end
 
-    style_score = sum(length(part) for part in remaining_parts if occursin(part, sname))
+const FONTINFO_CACHE = Dict{String, Union{NamedTuple{(:family, :style, :ext), Tuple{String, String, String}}, Nothing}}()
 
-    return (family_score, style_score, is_regular_style, fontlength_penalty)
+function font_info(fontpath::String)
+    if isfile(fontpath)
+        get!(FONTINFO_CACHE, fontpath) do
+            font = try_load(fontpath)
+            font === nothing && return
+            family = family_name(font)
+            style = style_name(font)
+            finalize(font)
+            (; family=family, style=style, ext=last(split(fontpath, '.')))
+        end
+    end
 end
 
 function try_load(fpath)
@@ -74,8 +98,11 @@ function try_load(fpath)
         return nothing
     end
 end
+try_load(::Nothing) = nothing
 
 fontname(ft::FTFont) = "$(family_name(ft)) $(style_name(ft))"
+
+const FONT_CACHE = Dict{String, Tuple{Float64, Union{String, Nothing}}}()
 
 function findfont(
         searchstring::String;
@@ -84,46 +111,40 @@ function findfont(
         additional_fonts::String=""
     )
     font_folders = copy(fontpaths())
-
     isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
 
+    font_folders = copy(fontpaths())
+    isempty(additional_fonts) || pushfirst!(font_folders, additional_fonts)
+    filter!(isdir, font_folders)
+    folder_max_mtime = maximum(mtime, font_folders)
+
+    if haskey(FONT_CACHE, searchstring)
+        cache_mtime, fontfile = FONT_CACHE[searchstring]
+        cache_mtime == folder_max_mtime && return try_load(fontfile)
+    end
+    _, fontfile = FONT_CACHE[searchstring] = (folder_max_mtime, findfont_nocache(searchstring, font_folders))
+    if !isnothing(fontfile)
+        try_load(fontfile)
+    end
+end
+
+function findfont_nocache(searchstring::String, fontfolders::Vector{<:AbstractString})
     # \W splits at all groups of non-word characters (like space, -, ., etc)
     searchparts = unique(split(lowercase(searchstring), r"\W+", keepempty=false))
-
-    best_score_so_far = (0, 0, false, typemin(Int))
-    best_font = nothing
-
-    for folder in font_folders
-        for font in readdir(folder)
-            fpath = joinpath(folder, font)
-            face = try_load(fpath)
-            face === nothing && continue
-
-            score = match_font(face, searchparts)
-
-            # we can compare all four tuple elements of the score at once
-            # in order of importance:
-
-            # 1. number of family match characters
-            # 2. number of style match characters
-            # 3. is font a "regular" style variant?
-            # 4. the negative length of the font name, the shorter the better
-
-            family_match_score = score[1]
-            if family_match_score > 0 && score > best_score_so_far
-                # finalize previous best font to close the font file
-                if !isnothing(best_font)
-                    finalize(best_font)
-                end
-
-                # new candidate
-                best_font = face
-                best_score_so_far = score
-            else
-                finalize(face)
-            end
+    max_score1 = sum(length, searchparts) + sum(1:length(searchparts))
+    best_file, best_score = nothing, (0, 0, 0, typemin(Int), 0)
+    for folder in fontfolders, fontfile in readdir(folder, join=true)
+        # we can compare all five tuple elements of the score at once
+        # in order of importance:
+        # 1. number of family and style match characters (with priority factor)
+        # 2. number of family match characters  (with priority factor)
+        # 3. is font a "regular" style variant?
+        # 4. the negative length of the font name, the shorter the better
+        # 5. the font file extension priority
+        score = score_font(searchparts, fontfile)
+        if first(score) > 0 && score > best_score
+            best_file, best_score = fontfile, score
         end
     end
-
-    return best_font
+    best_file
 end
