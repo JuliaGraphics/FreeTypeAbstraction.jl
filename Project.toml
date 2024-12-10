@@ -11,8 +11,6 @@ GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 
 [compat]
 BaseDirs = "1"
-ColorVectorSpace = "0.8, 0.9, 0.10"
-Colors = "0.11, 0.12"
 ColorVectorSpace = "0.8, 0.9, 0.10, 0.11"
 Colors = "0.11, 0.12, 0.13"
 FreeType = "4"
