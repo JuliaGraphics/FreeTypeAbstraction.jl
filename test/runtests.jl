@@ -296,6 +296,15 @@ end
     end
 end
 
+@testset "Unicode in path" begin
+    mktempdir() do dir
+        path = joinpath(dir, "𝓜𝔂 𝔽𝕒𝕟𝕔𝕪 𝐅𝐨𝐧𝐭 🅵🅸🅻🅴.ttf")
+        cp(joinpath(@__DIR__, "hack_regular.ttf"), path)
+        f = FreeTypeAbstraction.FTFont(path)
+        @test repr(f) == "FTFont (family = Hack, style = Regular)"
+    end
+end
+
 @testset "Thread safety" begin
     mktempdir() do dir
         n = 100
