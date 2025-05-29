@@ -6,6 +6,7 @@ import Base: /, *, ==, @lock
 import Base.Broadcast: BroadcastStyle, Style, broadcasted
 using GeometryBasics: StaticVector
 using BaseDirs
+import Mmap
 
 include("types.jl")
 include("findfonts.jl")

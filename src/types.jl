@@ -30,6 +30,16 @@ function newface(facename, faceindex::Real=0, ftlib=FREE_FONT_LIBRARY)
     return face[]
 end
 
+function newface_mmapped(filepath, faceindex::Real=0, ftlib=FREE_FONT_LIBRARY)
+    mmapped = open(filepath, "r") do io
+        Mmap.mmap(io)
+    end
+    face = Ref{FT_Face}()
+    err = @lock LIBRARY_LOCK FT_New_Memory_Face(ftlib[1], mmapped, length(mmapped), Int32(faceindex), face)
+    check_error(err, "Couldn't load font \"$filepath\"")
+    return face[], mmapped
+end
+
 
 struct FontExtent{T}
     vertical_bearing::Vec{2, T}
@@ -135,9 +145,10 @@ mutable struct FTFont
     use_cache::Bool
     extent_cache::Dict{UInt64, FontExtent{Float32}}
     lock::ReentrantLock # lock this for the duration of any FT operation on ft_ptr
-    function FTFont(ft_ptr::FreeType.FT_Face, use_cache::Bool=true)
+    mmapped::Union{Nothing,Vector{UInt8}}
+    function FTFont(ft_ptr::FreeType.FT_Face, use_cache::Bool=true, mmapped = nothing)
         extent_cache = Dict{UInt64, FontExtent{Float32}}()
-        face = new(ft_ptr, use_cache, extent_cache, ReentrantLock())
+        face = new(ft_ptr, use_cache, extent_cache, ReentrantLock(), mmapped)
         finalizer(safe_free, face)
         return face
     end
@@ -146,7 +157,10 @@ end
 use_cache(face::FTFont) = getfield(face, :use_cache)
 get_cache(face::FTFont) = getfield(face, :extent_cache)
 
-FTFont(path::String) = FTFont(newface(path))
+function FTFont(path::String, use_cache::Bool=true)
+    face, mmapped = newface_mmapped(path)
+    FTFont(face, use_cache, mmapped)
+end
 
 # C interop
 Base.cconvert(::Type{FreeType.FT_Face}, font::FTFont) = font
