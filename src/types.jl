@@ -217,8 +217,10 @@ end
 function get_extent(face::FTFont, glyphspec)
     gi = glyph_index(face, glyphspec)
     if use_cache(face)
-        get!(get_cache(face), gi) do
-            return internal_get_extent(face, gi)
+        lock(face.lock) do
+            get!(get_cache(face), gi) do
+                return internal_get_extent(face, gi)
+            end
         end
     else
         return internal_get_extent(face, gi)
