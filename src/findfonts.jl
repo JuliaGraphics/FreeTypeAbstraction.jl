@@ -75,7 +75,7 @@ function try_load(fpath)
     end
 end
 
-fontname(ft::FTFont) = "$(family_name(ft)) $(style_name(ft))"
+fontname(ft::FTFont) = ft.fontname
 
 function findfont(
         searchstring::String;

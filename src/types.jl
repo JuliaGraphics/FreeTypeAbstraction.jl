@@ -146,9 +146,11 @@ mutable struct FTFont
     extent_cache::Dict{UInt64, FontExtent{Float32}}
     lock::ReentrantLock # lock this for the duration of any FT operation on ft_ptr
     mmapped::Union{Nothing,Vector{UInt8}}
+    fontname::String
     function FTFont(ft_ptr::FreeType.FT_Face, use_cache::Bool=true, mmapped = nothing)
         extent_cache = Dict{UInt64, FontExtent{Float32}}()
-        face = new(ft_ptr, use_cache, extent_cache, ReentrantLock(), mmapped)
+        face = new(ft_ptr, use_cache, extent_cache, ReentrantLock(), mmapped, "")
+        face.fontname = "$(family_name(face)) $(style_name(face))"
         finalizer(safe_free, face)
         return face
     end
