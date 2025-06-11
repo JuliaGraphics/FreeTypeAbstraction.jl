@@ -1,6 +1,6 @@
 name = "FreeTypeAbstraction"
 uuid = "663a7486-cb36-511b-a19d-713bb74d65c9"
-version = "0.10.7"
+version = "0.10.8"
 
 [deps]
 BaseDirs = "18cc8868-cbac-4acf-b575-c8ff214dc66f"
