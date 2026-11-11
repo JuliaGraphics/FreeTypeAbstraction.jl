@@ -24,19 +24,49 @@ export findfont
 const valid_fontpaths = String[]
 fontpaths() = valid_fontpaths
 
+# `isdir`, `realpath` and `readdir` throw for a path that cannot be followed, such as a
+# symlink loop (ELOOP) or a folder without read permission; treat it as no folder.
+function try_io(f, path)
+    try
+        return f(path)
+    catch e
+        e isa Base.IOError || rethrow()
+        return nothing
+    end
+end
+
+"""
+    font_subdirs(roots)
+
+The folders in `roots` and every folder below them, breadth first. Each folder is listed
+once, so a symlink back to a folder already found ends the descent instead of looping, and
+paths that cannot be followed are skipped.
+"""
+function font_subdirs(roots)
+    found = String[]
+    seen = Set{String}()
+    queue = collect(String, roots)
+    while !isempty(queue)
+        path = popfirst!(queue)
+        try_io(isdir, path) === true || continue
+        real = try_io(realpath, path)
+        (real === nothing || real in seen) && continue
+        push!(seen, real)
+        push!(found, path)
+        entries = try_io(p -> readdir(p; join=true), path)
+        entries === nothing || append!(queue, entries)
+    end
+    return found
+end
+
 function __init__()
     ft_init()
     atexit(ft_done)
-    append!(valid_fontpaths, BaseDirs.fonts(existent=true))
+    roots = BaseDirs.fonts(existent=true)
     @static if Sys.isunix() && !Sys.isapple()
-        i = firstindex(valid_fontpaths)
-        while i <= length(valid_fontpaths)
-            path = valid_fontpaths[i]
-            if isdir(path)
-                append!(valid_fontpaths, filter(isdir, readdir(path, join=true)))
-            end
-            i += 1
-        end
+        append!(valid_fontpaths, font_subdirs(roots))
+    else
+        append!(valid_fontpaths, roots)
     end
     # This method of finding fonts might not work for exotic platforms,
     # so we supply a way to help it with an environment variable.

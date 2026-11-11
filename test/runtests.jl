@@ -14,6 +14,24 @@ using Test
     @test FA.ft_init()
 end
 
+@testset "font folders" begin
+    mktempdir() do root
+        mkpath(joinpath(root, "a", "b"))
+        touch(joinpath(root, "font.ttf"))
+        if Sys.iswindows()
+            @test FA.font_subdirs([root]) == [root, joinpath(root, "a"), joinpath(root, "a", "b")]
+        else
+            symlink("loop", joinpath(root, "loop"))    # a link to itself: ELOOP
+            symlink("..", joinpath(root, "a", "up"))   # a link back to the root
+            symlink("a", joinpath(root, "alias"))      # a second name for a folder
+            symlink("missing", joinpath(root, "gone")) # a dangling link
+            found = FA.font_subdirs([root, root])
+            @test found == [root, joinpath(root, "a"), joinpath(root, "a", "b")]
+        end
+        @test FA.font_subdirs([joinpath(root, "font.ttf"), joinpath(root, "nothing here")]) == String[]
+    end
+end
+
 face = FA.findfont("hack")
 
 @testset "basics" begin
